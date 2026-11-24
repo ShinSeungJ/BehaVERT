@@ -1,0 +1,64 @@
+# MABe22 state prediction — one value per video, [CLS] sequence model (Table 4).
+#
+#   behavert train configs/mabe22/state.yaml --task strain
+#
+# Tasks: strain, lights (classification; test metric = video-level F1, each video labelled
+# from its averaged window probabilities) and experiment_day, time_of_day (regression;
+# test metric = window-level MSE). strain uses the settings of the released checkpoint.
+output_dir: outputs/mabe22/state/{task}
+
+data:
+  format: mabe22_state
+  keypoints: mabe22/mabe22_kpts.pt
+  split: {method: stratified, train: 0.6, valid: 0.2}   # video-level 60/20/20 in 10 bins
+  window: {length: 64, stride: 32, pad_remainder: true}
+  augmentation:
+    arena: mabe22
+
+model:
+  mode: sequence
+  positional_encoding: learned
+  embedding_dropout: 0.1
+
+train:
+  epochs: 10
+  batch_size: 512
+  eval_batch_size: 512
+  weight_decay: 1.0e-6
+  warmup_steps: 300
+  eval_every: 5
+  log_every: 20
+  seed: 42
+
+tasks:
+  strain:
+    data: {labels: mabe22/task/strain/mabe22_strain.pt, augmentation: {classes: [0, 1]}}
+    model: {num_classes: 2, label_names: [WT, TG]}
+    loss: {name: f1, class_weights: [0.45, 0.55]}
+    sampler: proportional
+    train: {learning_rate: 1.0e-4, select_on: macro_f1}
+
+  lights:
+    data: {labels: mabe22/task/lights/mabe22_lights.pt, augmentation: {classes: [0, 1]}}
+    model: {num_classes: 2, label_names: [lights_off, lights_on]}
+    loss: {name: f1, class_weights: [0.45, 0.55]}
+    sampler: proportional
+    train: {learning_rate: 1.0e-4, select_on: macro_f1}
+
+  experiment_day:   # 0.25 / 0.5 / 0.75 / 1.0 = day 1-4
+    data:
+      labels: mabe22/task/experiment_day/mabe22_experiment_day.pt
+      split: {by: value}     # bins sorted by the target value
+    model: {problem: regression, num_classes: 1, head_hidden: 384}
+    loss: {name: mse}
+    sampler: none
+    train: {learning_rate: 5.0e-5, select_on: loss}
+
+  time_of_day:      # continuous in (0, 1]
+    data:
+      labels: mabe22/task/time_of_day/mabe22_time_of_day.pt
+      split: {by: value}
+    model: {problem: regression, num_classes: 1, head_hidden: 384}
+    loss: {name: mse}
+    sampler: none
+    train: {learning_rate: 5.0e-5, select_on: loss}

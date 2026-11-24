@@ -1,20 +1,6 @@
-"""
-BehavERT: BERT-based Animal Behavior Analysis from Keypoint Data
+"""BehaVERT: a transformer-based motion language model for mouse behavior."""
 
-A transformer-based deep learning framework for automated animal behavior analysis
-using 3D keypoint trajectories.
-"""
+from .model import BehaVERT, BehaVERTConfig, BehaVERTOutput
 
 __version__ = "1.0.0"
-__author__ = "BehavERT Team"
-__email__ = "contact@behavert.org"
-
-from .models import BehavERTModel
-from .data import BehaviorDataset
-from .training import BehavERTTrainer
-
-__all__ = [
-    "BehavERTModel",
-    "BehaviorDataset", 
-    "BehavERTTrainer",
-]
+__all__ = ["BehaVERT", "BehaVERTConfig", "BehaVERTOutput", "__version__"]

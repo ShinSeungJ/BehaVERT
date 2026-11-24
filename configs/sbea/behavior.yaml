@@ -1,0 +1,154 @@
+# SBeA behavior — per-frame behavior on the first 900 frames of each recording, with our
+# annotations (Fig. 3h). Token model with a learned positional encoding.
+#
+#   behavert train configs/sbea/behavior.yaml --task social
+#
+# Tasks: social (interaction between the two mice, 96 values per frame) and single
+# (individual behavior; each mouse is its own example, 48 values per frame).
+output_dir: outputs/sbea/behavior_{task}
+
+data:
+  format: sbea_behavior
+  keypoints: sbea/keypoints
+  behaviors: sbea/behaviors
+  window: {length: 64, stride: 32, pad_remainder: true}
+  augmentation:
+    arena: sbea
+
+model:
+  mode: token
+  positional_encoding: learned
+
+loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
+sampler: proportional
+
+train:
+  epochs: 1000
+  batch_size: 64
+  eval_batch_size: 256
+  grad_accum: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-3
+  warmup_steps: 100
+  eval_every: 5
+  log_every: 20
+  select_on: macro_f1
+  seed: 42
+
+# Splits balance the class mix and spread rare classes over all splits.
+tasks:
+  social:
+    data:
+      mode: social
+      split:
+        method: fixed
+        train:
+          - rec25-M3M6-20221108
+          - rec25-M1M4-20221109
+          - rec15-M3M10-20221109
+          - rec16-M4M7-20221109
+          - rec19-M1M10-20221109
+          - rec20-M4M9-20221108
+          - rec22-M1M8-20221108
+          - rec22-M5M6-20221109
+          - rec24-M5M8-20221109
+          - rec11-M8M10-20221109
+          - rec12-M7M10-20221108
+          - rec13-M6M7-20221108
+          - rec13-M7M8-20221109
+          - rec14-M7M9-20221108
+          - rec16-M6M10-20221108
+          - rec21-M9M10-20221108
+          - rec23-M6M9-20221109
+          - rec24-M6M8-20221108
+        valid:
+          - rec19-M2M7-20221108
+          - rec17-M1M3-20221109
+          - rec17-M8M9-20221108
+          - rec11-M2M3-20221108
+          - rec14-M4M5-20221109
+          - rec15-M3M5-20221108
+        test:
+          - rec20-M2M9-20221109
+          - rec12-M2M5-20221109
+          - rec18-M1M2-20221108
+          - rec18-M3M4-20221109
+          - rec21-M1M5-20221109
+          - rec23-M2M4-20221108
+    model:
+      num_classes: 4
+      label_names: [close, explore, approach, far]
+
+  single:
+    data:
+      mode: single
+      split:
+        method: fixed
+        train:
+          - rec11-M8M10-20221109_M8
+          - rec13-M6M7-20221108_M6
+          - rec13-M6M7-20221108_M7
+          - rec12-M2M5-20221109_M2
+          - rec14-M4M5-20221109_M4
+          - rec14-M4M5-20221109_M5
+          - rec15-M3M5-20221108_M5
+          - rec17-M1M3-20221109_M1
+          - rec17-M1M3-20221109_M3
+          - rec18-M3M4-20221109_M3
+          - rec18-M3M4-20221109_M4
+          - rec21-M1M5-20221109_M5
+          - rec23-M2M4-20221108_M2
+          - rec23-M2M4-20221108_M4
+          - rec25-M1M4-20221109_M1
+          - rec25-M1M4-20221109_M4
+          - rec15-M3M10-20221109_M3
+          - rec15-M3M10-20221109_M10
+          - rec16-M4M7-20221109_M4
+          - rec16-M4M7-20221109_M7
+          - rec19-M1M10-20221109_M1
+          - rec19-M2M7-20221108_M2
+          - rec19-M2M7-20221108_M7
+          - rec20-M2M9-20221109_M2
+          - rec20-M2M9-20221109_M9
+          - rec20-M4M9-20221108_M4
+          - rec20-M4M9-20221108_M9
+          - rec22-M1M8-20221108_M1
+          - rec22-M1M8-20221108_M8
+          - rec22-M5M6-20221109_M5
+          - rec22-M5M6-20221109_M6
+          - rec24-M5M8-20221109_M5
+          - rec25-M3M6-20221108_M3
+          - rec25-M3M6-20221108_M6
+          - rec12-M7M10-20221108_M10
+          - rec13-M7M8-20221109_M7
+        valid:
+          - rec11-M8M10-20221109_M10
+          - rec14-M7M9-20221108_M9
+          - rec16-M6M10-20221108_M6
+          - rec16-M6M10-20221108_M10
+          - rec17-M8M9-20221108_M8
+          - rec17-M8M9-20221108_M9
+          - rec21-M9M10-20221108_M9
+          - rec21-M9M10-20221108_M10
+          - rec23-M6M9-20221109_M6
+          - rec23-M6M9-20221109_M9
+          - rec24-M6M8-20221108_M6
+          - rec24-M6M8-20221108_M8
+        test:
+          - rec14-M7M9-20221108_M7
+          - rec12-M7M10-20221108_M7
+          - rec11-M2M3-20221108_M2
+          - rec11-M2M3-20221108_M3
+          - rec12-M2M5-20221109_M5
+          - rec24-M5M8-20221109_M8
+          - rec13-M7M8-20221109_M8
+          - rec18-M1M2-20221108_M1
+          - rec19-M1M10-20221109_M10
+          - rec15-M3M5-20221108_M3
+          - rec18-M1M2-20221108_M2
+          - rec21-M1M5-20221109_M1
+    model:
+      num_classes: 5
+      label_names: [crouch_explore, locomotion, groom, rearing, other]
+    train:
+      metric_average_classes: [0, 1, 2, 3]   # the reported average leaves out "other"

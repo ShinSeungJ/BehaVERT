@@ -1,22 +1,21 @@
-"""
-BehavERT Data Processing
-
-This module contains dataset classes and data processing utilities for various
-animal behavior datasets.
-"""
-
-from .datasets import BehaviorDataset, CalMS21Dataset, MABe22Dataset, SBeADataset
-from .preprocessing import normalize_keypoints, handle_missing_data, detect_outliers
-from .augmentation import KeypointAugmentation, TemporalAugmentation
+from .augmentation import AUGMENTATION_PRESETS, ArenaConfig, augment, get_arena
+from .dataset import ProportionalBatchSampler, WindowDataset, collate, subset_windows, windows_from_recordings
+from .recordings import (
+    CALMS21_TASK1_LABELS,
+    MABE22_STRAIN_LABELS,
+    Recording,
+    load_calms21,
+    load_calms21_pretraining,
+    load_mabe22_state,
+    load_recordings,
+    stratified_split,
+)
+from .windows import IGNORE_INDEX, Windows, sliding_windows, stitch_window_scores
 
 __all__ = [
-    "BehaviorDataset",
-    "CalMS21Dataset",
-    "MABe22Dataset", 
-    "SBeADataset",
-    "normalize_keypoints",
-    "handle_missing_data",
-    "detect_outliers",
-    "KeypointAugmentation",
-    "TemporalAugmentation",
+    "AUGMENTATION_PRESETS", "ArenaConfig", "augment", "get_arena",
+    "ProportionalBatchSampler", "WindowDataset", "collate", "subset_windows", "windows_from_recordings",
+    "CALMS21_TASK1_LABELS", "MABE22_STRAIN_LABELS", "Recording", "load_calms21", "load_calms21_pretraining",
+    "load_mabe22_state", "load_recordings", "stratified_split",
+    "IGNORE_INDEX", "Windows", "sliding_windows", "stitch_window_scores",
 ]

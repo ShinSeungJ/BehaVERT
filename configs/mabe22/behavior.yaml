@@ -1,0 +1,48 @@
+# MABe22 behavior — one binary per-frame model per behavior, token model (Table 4).
+#
+#   behavert train configs/mabe22/behavior.yaml --task chase
+#
+# Table 4 groups: Movement = mean class-1 F1 of approach and chase; Contact = mean of close,
+# contact, huddles, oral_ear_contact, oral_genital_contact, oral_oral_contact; Watching = watching.
+output_dir: outputs/mabe22/behavior/{task}
+
+data:
+  format: mabe22_frames
+  keypoints: mabe22/mabe22_kpts.pt
+  split: {method: stratified, train: 0.6, valid: 0.2}   # bins by each video's fraction of positive frames
+  window: {length: 128, stride: 64, pad_remainder: true}
+  augmentation:
+    arena: mabe22
+    classes: [0, 1]            # all windows
+
+model:
+  mode: token
+  num_classes: 2
+  positional_encoding: sinusoidal
+
+loss: {name: hybrid, gamma: 5.0, alpha: 0.1}
+sampler: proportional
+
+train:
+  epochs: 10
+  batch_size: 32
+  eval_batch_size: 256
+  grad_accum: 8
+  learning_rate: 5.0e-5
+  weight_decay: 1.0e-5
+  warmup_steps: 300
+  eval_every: 5
+  log_every: 20
+  select_on: f1_class1         # Table 4 reports the behavior-class F1
+  seed: 42
+
+tasks:
+  approach:             {data: {labels: mabe22/task/behavior/movement/approach/mabe22_approach.pt},                         model: {label_names: [none, approach]}}
+  chase:                {data: {labels: mabe22/task/behavior/movement/chase/mabe22_chase.pt},                               model: {label_names: [none, chase]}}
+  close:                {data: {labels: mabe22/task/behavior/contact/close/mabe22_close.pt},                                model: {label_names: [none, close]}}
+  contact:              {data: {labels: mabe22/task/behavior/contact/contact/mabe22_contact.pt},                            model: {label_names: [none, contact]}}
+  huddles:              {data: {labels: mabe22/task/behavior/contact/huddles/mabe22_huddles.pt},                            model: {label_names: [none, huddles]}}
+  oral_ear_contact:     {data: {labels: mabe22/task/behavior/contact/oral_ear_contact/mabe22_oral_ear_contact.pt},          model: {label_names: [none, oral_ear_contact]}}
+  oral_genital_contact: {data: {labels: mabe22/task/behavior/contact/oral_genital_contact/mabe22_oral_genital_contact.pt},  model: {label_names: [none, oral_genital_contact]}}
+  oral_oral_contact:    {data: {labels: mabe22/task/behavior/contact/oral_oral_contact/mabe22_oral_oral_contact.pt},        model: {label_names: [none, oral_oral_contact]}}
+  watching:             {data: {labels: mabe22/task/behavior/watching/mabe22_watching.pt},                                  model: {label_names: [none, watching]}}

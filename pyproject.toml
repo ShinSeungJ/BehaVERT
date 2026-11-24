@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "behavert"
+version = "1.0.0"
+description = "BehaVERT: a transformer-based motion language model for decoding behavioral semantics in mice"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Seung Jae Shin" },
+  { name = "Junesu Lee" },
+  { name = "Chang Ko" },
+  { name = "Daesoo Kim" },
+]
+requires-python = ">=3.9"
+dependencies = [
+  "torch>=2.3",
+  "transformers>=4.48",
+  "safetensors>=0.4",
+  "huggingface_hub>=0.20",
+  "numpy",
+  "scipy",
+  "pandas",
+  "scikit-learn>=1.5",
+  "matplotlib",
+  "tqdm",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+video = ["opencv-python"]
+pose = ["opencv-python", "ultralytics"]   # Ultralytics is AGPL-3.0
+
+[project.scripts]
+behavert = "behavert.cli:main"
+
+[project.urls]
+Paper = "https://doi.org/10.1007/s11263-026-02834-y"
+Repository = "https://github.com/ShinSeungJ/BehaVERT"
+
+[tool.setuptools.packages.find]
+include = ["behavert", "behavert.*"]

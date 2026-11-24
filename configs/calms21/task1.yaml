@@ -1,0 +1,45 @@
+# CalMS21 Task 1 — attack / investigation / mount per frame, trained from scratch.
+# Table 1, "BehaVERT" row.
+output_dir: outputs/calms21/task1
+
+data:
+  format: calms21
+  train: calms21/task1/calms21_task1_train.json
+  test: calms21/task1/calms21_task1_test.json
+  split: {method: random_windows, valid: 0.2}   # random 20% of the training windows
+  window:
+    length: 64
+    stride: 32                 # 50% overlap (temporal unfolding)
+    pad_remainder: false
+    concat_recordings: true    # sessions joined into one stream before windowing
+  augmentation:
+    arena: calms21
+    classes: [0, 1, 2, 3]      # augment windows containing any of these classes (here: all)
+
+model:
+  mode: token
+  num_classes: 4
+  label_names: [attack, investigation, mount, other]
+  positional_encoding: sinusoidal
+
+loss:
+  name: hybrid
+  gamma: 5.0
+  alpha: 0.2
+  class_proportions: [0.005, 0.26, 0.056, 0.7]   # hand-set proportions for the class weights
+
+sampler: proportional
+
+train:
+  epochs: 2000
+  batch_size: 512
+  eval_batch_size: 512
+  learning_rate: 1.0e-5
+  weight_decay: 0.01
+  warmup_steps: 4000
+  eval_every: 10
+  log_every: 10
+  early_stop_accuracy: 0.98
+  metric_ignore_classes: [3]   # "other" frames are not scored
+  select_on: macro_f1
+  seed: 42

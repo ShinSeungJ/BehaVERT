@@ -1,0 +1,25 @@
+BehaVERT benchmarks — license notice
+
+- deepethogram/keypoints/ and sbea/behaviors/
+    Original work by the BehaVERT authors (Seung Jae Shin, Junesu Lee, Chang Ko,
+    Daesoo Kim), licensed under the Creative Commons Attribution 4.0 International
+    License (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/legalcode
+
+- calms21/
+    Adapted from CalMS21 (Sun et al., 2021, https://data.caltech.edu/records/s0vdx-0k302),
+    licensed under CC BY 4.0, and shared under CC BY 4.0. Changes: calms21/README.md.
+
+- pair24m/
+    Adapted from PAIR-R24M (Marshall et al., 2021), licensed under CC BY 4.0 (see
+    pair24m/LICENSE_PAIR-R24M.txt), and shared under CC BY 4.0. Changes: pair24m/README.md.
+
+- mabe22/, deepethogram/labels/, deepethogram/pose_videos/, sbea/keypoints/
+    Derived from MABe22 (Sun et al., 2023, https://data.caltech.edu/records/rdsa8-rde65),
+    DeepEthogram (Bohnslav et al., 2021, https://github.com/jbohnslav/deepethogram) and
+    SBeA (Han et al., 2024, https://github.com/YNCris/SBeA_release). These files remain
+    subject to the terms of their original releases and are provided for research use
+    with attribution to the original authors. Changes are described in each folder's
+    README.
+
+If you use any part of this dataset, please cite BehaVERT and the original dataset
+(see README.md).

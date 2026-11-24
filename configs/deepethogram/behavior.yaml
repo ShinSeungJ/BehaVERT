@@ -1,0 +1,63 @@
+# DeepEthogram — 6 behaviors per frame, token model (Table 9, "+Unfold +Aug" row).
+# Keypoints are our YOLOv12 predictions; labels are the original DeepEthogram ones.
+# Other Table 9 rows: Base = window stride 128 and augmentation.enabled false;
+# +Unfold = augmentation.enabled false; +Aug = stride 128.
+output_dir: outputs/deepethogram/behavior
+
+data:
+  format: deepethogram
+  keypoints: deepethogram/keypoints
+  labels: deepethogram/labels
+  # Video-level 60/20/20 split that balances the class mix (behavert.data.recordings.balanced_split).
+  split:
+    method: fixed
+    train:
+      - mouse00
+      - mouse01
+      - mouse05
+      - mouse11
+      - mouse12
+      - mouse19
+      - mouse03
+      - mouse04
+      - mouse08
+      - mouse09
+      - mouse10
+      - mouse06
+    valid:
+      - mouse02
+      - mouse18
+      - mouse07
+      - mouse17
+    test:
+      - mouse15
+      - mouse16
+      - mouse13
+      - mouse14
+  window: {length: 128, stride: 64, pad_remainder: true}
+  augmentation:
+    enabled: true
+    arena: deepethogram
+    classes: [0, 1, 2, 3, 4, 5]   # all windows
+
+model:
+  mode: token
+  num_classes: 6
+  label_names: [background, locomote, rear, face_groom, body_groom, defecate]
+  positional_encoding: sinusoidal
+
+loss: {name: hybrid, gamma: 5.0, alpha: 0.2}
+sampler: proportional
+
+train:
+  epochs: 1000
+  batch_size: 256
+  eval_batch_size: 256
+  grad_accum: 2
+  learning_rate: 5.0e-5
+  weight_decay: 1.0e-6
+  warmup_steps: 1000
+  eval_every: 5
+  log_every: 20
+  select_on: macro_f1           # macro F1 over all 6 classes
+  seed: 42

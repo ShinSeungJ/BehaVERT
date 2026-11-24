@@ -1,0 +1,112 @@
+# PAIR-R24M single-animal behavior — 11 classes per frame, token model (Table 7, "+Unfold" row).
+# Every animal is its own recording: the single-animal files plus both animals of each
+# two-animal file (66 tracks).
+# Other Table 7 rows: Base = window stride 64; +Aug = stride 64 and augmentation.enabled true;
+# +Unfold +Aug = augmentation.enabled true. Augmentation lowers the scores on this dataset
+# (behaviors are tied to arena locations), so the best row has it off.
+output_dir: outputs/pair24m/single
+
+data:
+  format: pair24m_single
+  single: pair24m/single
+  multi: pair24m/multi
+  # Video-level 60/20/20 split that balances the class mix (behavert.data.recordings.balanced_split).
+  split:
+    method: fixed
+    train:
+      - single/20210121_Recording_SR2_SR4m_social_wvid_markerDataset
+      - multi/20210129_Recording_SR1_SR4_social_wvid_markerDataset/an2
+      - multi/20210201_Recording_SR1_SR5_social_wvid_markerDataset/an1
+      - multi/20210201_Recording_SR1_SR5_social_wvid_markerDataset/an2
+      - multi/20210201_Recording_SR2_SR4red_social_wvid_markerDataset/an1
+      - multi/20210201_Recording_SR2_SR4red_social_wvid_markerDataset/an2
+      - multi/20210201_Recording_SR4red_SR5_social_wvid_markerDataset/an1
+      - multi/20210201_Recording_SR4red_SR5_social_wvid_markerDataset/an2
+      - multi/20210202_Recording_SR2_SR5red_social_wvid_markerDataset/an1
+      - multi/20210202_Recording_SR2_SR5red_social_wvid_markerDataset/an2
+      - multi/20210202_Recording_SR3_SR4red_social_wvid_markerDataset/an1
+      - multi/20210202_Recording_SR3_SR4red_social_wvid_markerDataset/an2
+      - multi/20210202_Recording_SR3_SR5red_social_wvid_markerDataset/an1
+      - multi/20210202_Recording_SR3_SR5red_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR1_SR2_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR1_SR2_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR1_SR3_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR1_SR3_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR1_SR4_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR1_SR4_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR1_SR5_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR1_SR5_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR2red_SR3_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR2red_SR3_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR2red_SR5_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR2red_SR5_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR3_SR4red_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR3_SR4red_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR3_SR5red_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR3_SR5red_social_wvid_markerDataset/an2
+      - multi/20210203_Recording_SR4_SR5red_social_wvid_markerDataset/an1
+      - multi/20210203_Recording_SR4_SR5red_social_wvid_markerDataset/an2
+      - multi/20210204_Recording_SR2red_SR4_social_wvid_markerDataset/an1
+      - multi/20210204_Recording_SR2red_SR4_social_wvid_markerDataset/an2
+      - multi/20210219_Recording_SR9red_SR10_social_wvid_markerDataset/an1
+      - multi/20210219_Recording_SR9red_SR10_social_wvid_markerDataset/an2
+      - multi/20210223_Recording_SR9_SR10red_social_wvid_markerDataset/an1
+      - multi/20210223_Recording_SR9_SR10red_social_wvid_markerDataset/an2
+      - single/20210204_Recording_SR3_SR6m_wvid_social_markerDataset
+    valid:
+      - single/20210122_Recording_SR1_SR4m_social_wvid_markerDataset
+      - single/20210126_Recording_SR3_SR4m_social_wvid_markerDataset
+      - single/20210202_Recording_SR4_SR6m_social_wvid_markerDataset
+      - single/20210202_Recording_SR5_SR6m_social_wvid_markerDataset
+      - single/20210205_Recording_SR2_SR6m_wvid_social_new_markerDataset
+      - single/20210205_Recording_SR4_SR6m_wvid_social_new_markerDataset
+      - single/20210205_Recording_SR5_SR6m_wvid_social_markerDataset
+      - single/20210218_Recording_SR10_SR11m_social_wvid_markerDataset
+      - single/20210218_Recording_SR9_SR11m_social_wvid_markerDataset
+      - single/20210222_Recording_SR10_SR11m_social_wvid_markerDataset
+      - single/20210223_Recording_SR9_SR11m_social_wvid_markerDataset
+      - multi/20210119_Recording_SR1_SR2_social_vidtwo_markerDataset/an1
+      - multi/20210119_Recording_SR1_SR2_social_vidtwo_markerDataset/an2
+    test:
+      - single/20210205_Recording_SR1_SR6m_wvid_social_new_markerDataset
+      - multi/20210121_Recording_SR1_SR2_social_markerDataset/an1
+      - multi/20210121_Recording_SR1_SR2_social_markerDataset/an2
+      - multi/20210122_Recording_SR1_SR2_social_wvid_markerDataset/an1
+      - multi/20210122_Recording_SR1_SR2_social_wvid_markerDataset/an2
+      - multi/20210125_Recording_SR1_SR3_social_wvid_markerDataset/an1
+      - multi/20210125_Recording_SR1_SR3_social_wvid_markerDataset/an2
+      - multi/20210128_Recording_SR1+SR2_social_wvid_markerDataset/an1
+      - multi/20210128_Recording_SR1+SR2_social_wvid_markerDataset/an2
+      - multi/20210128_Recording_SR1_SR3_social_wvid_markerDataset/an1
+      - multi/20210128_Recording_SR1_SR3_social_wvid_markerDataset/an2
+      - multi/20210128_Recording_SR2+SR3redH_markerDataset/an1
+      - multi/20210128_Recording_SR2+SR3redH_markerDataset/an2
+      - multi/20210129_Recording_SR1_SR4_social_wvid_markerDataset/an1
+  window: {length: 64, stride: 32, pad_remainder: true}
+  augmentation:
+    enabled: false
+    arena: pair24m
+    classes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+model:
+  mode: token
+  num_classes: 11
+  label_names: [idle, small_movement, head_tilt, groom, sniff, investigate, rear_up, rear_down,
+                crouch_explore, amble, locomotion]
+  positional_encoding: sinusoidal
+
+loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
+sampler: proportional
+
+train:
+  epochs: 100
+  batch_size: 64
+  eval_batch_size: 256
+  grad_accum: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-4
+  warmup_steps: 100
+  eval_every: 5
+  log_every: 20
+  select_on: macro_f1           # macro F1 over all 11 classes
+  seed: 42

@@ -1,0 +1,21 @@
+# CalMS21 Task 1 fine-tuned from the MKM-pretrained encoder (configs/calms21/pretrain.yaml).
+# Table 1, "BehaVERT (self-supervision)" row; settings of the released checkpoint
+# (Hugging Face: calms21-task1).
+base: task1.yaml
+output_dir: outputs/calms21/task1_pretrained
+
+data:
+  window: {length: 128, stride: 64}
+  augmentation:
+    classes: [0, 1, 2]
+
+model:
+  init_from: outputs/calms21/pretrain/best_loss
+
+train:
+  batch_size: 256
+  eval_batch_size: 256
+  grad_accum: 2
+  warmup_steps: 2000
+  eval_every: 20
+  log_every: 20

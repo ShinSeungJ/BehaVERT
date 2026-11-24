@@ -1,0 +1,68 @@
+# CalMS21 Task 3 — one binary per-frame model per behavior, token model (Table 3).
+#
+#   behavert train configs/calms21/task3.yaml --task groom
+output_dir: outputs/calms21/task3/{task}
+
+data:
+  format: calms21
+  train: calms21/task3_new_behaviors/calms21_task3_train.json
+  test: calms21/task3_new_behaviors/calms21_task3_test.json
+  split: {method: test_as_valid}   # validation = the test sessions
+  window: {length: 64, stride: 32, pad_remainder: true}   # per session, padded last window
+  augmentation:
+    arena: calms21
+    classes: [0, 1]            # all windows
+
+model:
+  mode: token
+  num_classes: 2
+  positional_encoding: sinusoidal
+
+loss: {name: hybrid, alpha: 0.2}   # class proportions from the training data
+
+sampler: proportional
+
+train:
+  eval_batch_size: 512
+  eval_every: 5
+  log_every: 5
+  select_on: f1_class1         # Table 3 reports the behavior-class F1
+  seed: 42
+
+# data.group selects the behavior inside the Task 3 files
+tasks:
+  approach:
+    data: {group: approach}
+    model: {label_names: [other, approach]}
+    loss: {gamma: 1}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 100, weight_decay: 1.0e-4}
+  disengaged:
+    data: {group: disengaged}
+    model: {label_names: [other, disengaged]}
+    loss: {gamma: 1}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 100, weight_decay: 1.0e-4}
+  groom:
+    data: {group: groom}
+    model: {label_names: [other, groom]}
+    loss: {gamma: 3}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 300, weight_decay: 1.0e-4}
+  intromission:
+    data: {group: intromission}
+    model: {label_names: [other, intromission]}
+    loss: {gamma: 5}
+    train: {epochs: 1000, batch_size: 512, grad_accum: 1, learning_rate: 6.0e-5, warmup_steps: 300, weight_decay: 1.0e-4}
+  mount_attempt:
+    data: {group: mount_attempt}
+    model: {label_names: [other, mount_attempt]}
+    loss: {gamma: 1}
+    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup_steps: 400, weight_decay: 1.0e-3}
+  sniff_face:
+    data: {group: sniff_face}
+    model: {label_names: [other, sniff_face]}
+    loss: {gamma: 2}
+    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup_steps: 400, weight_decay: 1.0e-3}
+  whiterearing:
+    data: {group: whiterearing}
+    model: {label_names: [other, white_rearing]}
+    loss: {gamma: 5}
+    train: {epochs: 1000, batch_size: 64, grad_accum: 8, learning_rate: 6.0e-5, warmup_steps: 300, weight_decay: 1.0e-3}

@@ -1,0 +1,30 @@
+# CalMS21 — self-supervised pretraining by masked keypoint modeling (MKM).
+# Encoder used for the "BehaVERT (self-supervision)" row of Table 1.
+#
+#   behavert pretrain configs/calms21/pretrain.yaml
+output_dir: outputs/calms21/pretrain
+
+data:
+  format: calms21_pretraining
+  train: calms21/calms21_all_keypoints.pt     # every CalMS21 session, labels removed
+  split: {method: random_windows, valid: 0.2}  # random 20% of the windows for validation
+  window: {length: 64, stride: 64, pad_remainder: false}   # non-overlapping 64-frame chunks per session
+  augmentation:
+    arena: calms21
+
+pretraining:
+  mask_ratio: 0.5          # fraction of coordinates set to 0 and reconstructed
+
+model:
+  positional_encoding: sinusoidal
+
+train:
+  epochs: 100
+  batch_size: 512
+  eval_batch_size: 512
+  learning_rate: 5.0e-5
+  weight_decay: 1.0e-5
+  warmup_steps: 2000
+  eval_every: 10           # each evaluation is a full validation pass; raise to train faster
+  log_every: 10
+  seed: 42

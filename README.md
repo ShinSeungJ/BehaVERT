@@ -1,314 +1,390 @@
-# BehaVERT: A Transformer-based Motion Language Model for Decoding Behavioral Semantics in Mice
+<h1 align="center">BehaVERT</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.1.2-red.svg)](https://pytorch.org/)
+<p align="center">
+  <b>A Transformer-Based Motion Language Model for Decoding Behavioral Semantics in Mice</b>
+</p>
 
-**BehavERT** is a transformer-based deep learning framework for automated animal behavior analysis using 3D keypoint trajectories. By adapting BERT's masked language modeling approach to pose sequences, BehavERT learns rich spatiotemporal representations of animal behaviors across multiple species and experimental contexts.
+<p align="center">
+  <a href="https://doi.org/10.1007/s11263-026-02834-y"><img alt="Paper" src="https://img.shields.io/badge/Paper-IJCV%202026-1f6feb"></a>
+  <a href="https://huggingface.co/ShinSeungJ/behavert"><img alt="Models" src="https://img.shields.io/badge/%F0%9F%A4%97%20Models-behavert-ffcc4d"></a>
+  <a href="https://huggingface.co/datasets/ShinSeungJ/behavert-data"><img alt="Dataset" src="https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-behavert--data-ffcc4d"></a>
+  <a href="https://colab.research.google.com/github/ShinSeungJ/BehaVERT/blob/main/notebooks/quickstart.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green"></a>
+</p>
 
-## 🎯 Overview
+<p align="center">
+  <img src="assets/figures/figure1a.png" width="100%" alt="BehaVERT: from annotated video to keypoint tokens, a BERT encoder and a linear decoder">
+</p>
 
-BehavERT revolutionizes animal behavior analysis by treating pose sequences as "behavioral language" and applying transformer architectures to learn complex behavioral patterns. The framework supports:
+BehaVERT reads animal pose as a language. Each video frame's keypoints form one
+token, and a BERT encoder learns how those tokens relate across time. The same
+encoder serves two kinds of question:
 
-- **Multi-species behavior recognition** (mice, rats, primates)
-- **Individual and social behavior analysis**
-- **Cross-dataset generalization**
-- **Pretraining and fine-tuning paradigms**
-- **State-of-the-art performance** on multiple benchmarks
+- **What is the animal doing at each moment?** A *token* model labels every frame
+  (attack, grooming, rearing, …).
+- **What is true of the whole clip?** A *sequence* model reads a `[CLS]` token
+  and gives one answer for a window or recording (strain, genotype, time of day, …).
 
-## 🏗️ Architecture
+This repository holds everything needed to use BehaVERT: pretrained models, a
+one-command pipeline from video to behavior, training configs for every
+experiment in the paper, and tools to inspect what the model attends to and how
+it organizes behavior in its embedding space.
 
-```
-Input: 3D Keypoint Sequences [batch, seq_len, keypoints×3]
-    ↓
-Linear Embedding Layer (keypoints×3 → 768)
-    ↓
-Positional Encoding + CLS Token
-    ↓
-12-Layer BERT Transformer (768 hidden, 12 heads)
-    ↓
-Task-Specific Head (Classification/Regression)
-    ↓
-Output: Behavior Predictions [batch, seq_len, num_classes]
-```
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="assets/videos/calms21_sync.mp4"><img src="assets/videos/calms21_sync.gif" alt="CalMS21 synchronized video"></a><br>
+      <sub><b>CalMS21</b>: frame-level attack / investigation / mount, ground truth vs prediction</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="assets/videos/mabe22_sync.mp4"><img src="assets/videos/mabe22_sync.gif" alt="MABe22 synchronized video"></a><br>
+      <sub><b>MABe22</b>: strain (WT / TG) of a mouse triplet, with attention peaks highlighted</sub>
+    </td>
+  </tr>
+</table>
+<p align="center"><sub>Click a preview for the full video. Each panel shows the skeleton on the video, the clip's position in
+the embedding map, attention and confidence over ±3 s, and the label strips.</sub></p>
 
-## 📊 Supported Datasets
+## Contents
 
-### 1. **CalMS21** - Multi-task Behavior Classification
-- **Species**: Laboratory mice
-- **Tasks**: 3 classification tasks + annotation transfer
-- **Keypoints**: 7 body parts × 2D coordinates
-- **Behaviors**: Diverse ethological repertoire
-- **Scale**: 1000+ hours of annotated video
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Pretrained models](#pretrained-models)
+- [Datasets](#datasets)
+- [Training and evaluation](#training-and-evaluation)
+- [Training on your own data](#training-on-your-own-data)
+- [Attention and embedding analysis](#attention-and-embedding-analysis)
+- [Annotation tools](#annotation-tools)
+- [Repository layout](#repository-layout)
+- [Citation](#citation)
+- [License](#license)
 
-### 2. **MABe22** - Multi-animal Behavior Analysis  
-- **Species**: Laboratory mice (groups of 3)
-- **Tasks**: Social behavior recognition, state prediction
-- **Keypoints**: 12 body parts × 3D coordinates per mouse
-- **Behaviors**: Contact, movement, watching, strain classification
-- **Scale**: 100+ hours across multiple experimental conditions
+## Installation
 
-### 3. **SBeA** - Social Behavior Analysis
-- **Species**: Laboratory mice (pairs)
-- **Tasks**: Individual behaviors + dyadic interactions
-- **Keypoints**: 16 body parts × 3D coordinates per mouse
-- **Behaviors**: Individual (groom, rear, locomote) + Social (approach, contact)
-- **Scale**: 30 sessions with genotype variations (WT/KO)
-
-### 4. **DeepEthogram** - Ethological Behavior Recognition
-- **Species**: Laboratory mice
-- **Tasks**: Classical ethogram behaviors
-- **Keypoints**: Variable keypoint configurations
-- **Behaviors**: Species-typical behavioral repertoire
-- **Scale**: Diverse experimental contexts
-
-### 5. **Pair24M** - Dyadic Interaction Analysis
-- **Species**: Laboratory mice (pairs)
-- **Tasks**: Social interaction classification
-- **Keypoints**: 12 body parts × 3D coordinates per mouse
-- **Behaviors**: Multi-level interaction hierarchy
-- **Scale**: 24+ hours of paired interactions
-
-## 🚀 Key Features
-
-### Multi-Modal Training Paradigms
-- **Masked Language Modeling (MLM)**: Self-supervised pretraining on unlabeled pose sequences
-- **Supervised Fine-tuning**: Task-specific adaptation with labeled data
-- **Multi-task Learning**: Joint training across multiple behavioral tasks
-- **Cross-dataset Transfer**: Leveraging knowledge across species and contexts
-
-### Advanced Data Processing
-- **Sequence Unfolding**: Overlapping windows for temporal continuity
-- **Data Augmentation**: Pose-aware transformations preserving behavioral semantics
-- **Multi-scale Analysis**: Variable sequence lengths (64-512 frames)
-- **Robust Preprocessing**: Normalization, outlier detection, missing data handling
-
-### Model Variants
-- **Single-animal Models**: Individual behavior recognition
-- **Multi-animal Models**: Social interaction analysis
-- **State Prediction Models**: Environmental and internal state classification
-- **Regression Models**: Continuous behavioral metrics
-
-## 📁 Repository Structure
-
-```
-BehavERT/
-├── README.md                 # This file
-├── LICENSE                   # MIT License
-├── requirements.txt          # Python dependencies
-├── setup.py                 # Package installation
-│
-├── behavert/                # Core BehavERT package
-│   ├── __init__.py
-│   ├── models/              # Model architectures
-│   │   ├── bert_models.py   # BERT-based architectures
-│   │   ├── embeddings.py    # Input embedding layers
-│   │   └── heads.py         # Task-specific output heads
-│   ├── data/                # Data processing utilities
-│   │   ├── datasets.py      # Dataset classes
-│   │   ├── preprocessing.py # Data preprocessing
-│   │   └── augmentation.py  # Data augmentation
-│   ├── training/            # Training utilities
-│   │   ├── trainer.py       # Training loops
-│   │   ├── losses.py        # Loss functions
-│   │   └── metrics.py       # Evaluation metrics
-│   └── utils/               # Utility functions
-│       ├── config.py        # Configuration management
-│       └── visualization.py # Plotting and visualization
-│
-├── experiments/             # Experiment configurations
-│   ├── calms21/            # CalMS21 experiments
-│   ├── mabe22/             # MABe22 experiments
-│   ├── sbea/               # SBeA experiments
-│   ├── deepethogram/       # DeepEthogram experiments
-│   └── pair24m/            # Pair24M experiments
-│
-├── scripts/                # Training and evaluation scripts
-│   ├── pretrain.py         # Self-supervised pretraining
-│   ├── finetune.py         # Supervised fine-tuning
-│   ├── evaluate.py         # Model evaluation
-│   └── inference.py        # Inference on new data
-│
-├── configs/                # Configuration files
-│   ├── model_configs/      # Model architecture configs
-│   ├── data_configs/       # Dataset configurations
-│   └── training_configs/   # Training hyperparameters
-│
-├── notebooks/              # Jupyter notebooks
-│   ├── data_exploration.ipynb
-│   ├── model_analysis.ipynb
-│   └── visualization.ipynb
-│
-├── docs/                   # Documentation
-│   ├── installation.md     # Installation guide
-│   ├── quickstart.md       # Quick start tutorial
-│   ├── api_reference.md    # API documentation
-│   └── datasets.md         # Dataset documentation
-│
-└── tests/                  # Unit tests
-    ├── test_models.py
-    ├── test_data.py
-    └── test_training.py
-```
-
-## 🛠️ Installation
-
-### Prerequisites
-- Python 3.8+
-- CUDA-capable GPU (recommended)
-- 16GB+ RAM
-
-### Quick Install
 ```bash
-git clone https://github.com/ShinSeungJ/BehavERT.git
-cd BehavERT
-pip install -r requirements.txt
-pip install -e .
+git clone https://github.com/ShinSeungJ/BehaVERT.git
+cd BehaVERT
+pip install -e .              # core: models, training, analysis
+pip install -e ".[video]"     # + reading and writing videos (OpenCV)
+pip install -e ".[pose]"      # + pose estimation from raw video (Ultralytics YOLO)
 ```
 
-### Docker Installation
+BehaVERT needs Python ≥ 3.9 and PyTorch ≥ 2.3. A CUDA GPU is recommended for
+training; inference on short clips also runs on a CPU. Everything is available
+through one command, `behavert` (`behavert <command> -h` lists the options).
+
+> [!NOTE]
+> The `pose` extra installs [Ultralytics](https://github.com/ultralytics/ultralytics),
+> which is licensed under AGPL-3.0, as are the pose models trained with it. The
+> rest of BehaVERT is MIT-licensed and does not need it.
+
+## Quick start
+
+Models are downloaded from the Hugging Face Hub on first use. The demo inputs
+are in [`demo/`](demo): videos in `demo/video/`, keypoints and labels in `demo/csv/`.
+The [quick-start notebook](notebooks/quickstart.ipynb)
+([Colab](https://colab.research.google.com/github/ShinSeungJ/BehaVERT/blob/main/notebooks/quickstart.ipynb))
+walks through the same steps.
+
+### From video to behavior
+
+<img align="right" width="360" src="assets/videos/oft_overlay.gif" alt="Open-field overlay video">
+
+With a pose model in front of it, BehaVERT goes from a raw video to frame-level
+behavior in one command. For single mice filmed from above in an open field,
+the `oft-pose` and `oft-behavior` models detect 12 keypoints and classify seven
+behaviors: supported rearing, unsupported rearing, grooming, freezing, jumping,
+backwards walking and others.
+
 ```bash
-docker build -t behavert .
-docker run --gpus all -it behavert
+behavert decode --video demo/video/oft.mp4 --model oft-behavior --overlay --sync
 ```
 
-<!-- ## 🚀 Quick Start
+`--video` also takes a folder, and every video in it is processed.
 
-### 1. Pretraining (Self-supervised)
+<br clear="right">
+
+Results go to `outputs/decode/<video name>/`:
+
+| File | Contents |
+|---|---|
+| `keypoints.csv` | the keypoints the model reads, per frame (when they come from a video) |
+| `behavior.csv` | per frame: behavior, confidence, attention and the probability of every class |
+| `summary.csv` | per behavior: frames, seconds, percent of the recording and number of episodes |
+| `analysis.npz` | all of the above, plus one embedding per window |
+| `overlay.mp4` | the video with the skeleton and the current behavior drawn on (`--overlay`) |
+| `sync.mp4` | synchronized panel: video, embedding map, attention, confidence, labels (`--sync`) |
+
+Each stage is cached: running the command again with other rendering options
+reuses the keypoints and predictions (`--force` recomputes them).
+
+### From keypoints to a synchronized video
+
+<img align="right" width="300" src="assets/figures/figure1c.png" alt="Synchronized visualization system">
+
+When keypoints already exist, pass them as a CSV, one row per frame. Ground-truth
+labels, if given, are drawn beside the predictions.
+
 ```bash
-# Pretrain on CalMS21 unlabeled data
-python scripts/pretrain.py \
-    --dataset calms21 \
-    --data_dir /path/to/calms21 \
-    --epochs 100 \
-    --batch_size 32 \
-    --learning_rate 1e-4
+# CalMS21: attack / investigation / mount per frame
+behavert decode --keypoints demo/csv/calms21_mouse071_task1_annotator1.csv \
+    --labels demo/csv/calms21_mouse071_task1_annotator1_labels.csv \
+    --video demo/video/calms21_mouse071_task1_annotator1.mp4 \
+    --model calms21-task1 --sync --frames 9000
+
+# MABe22: strain of a mouse triplet
+behavert decode --keypoints demo/csv/mabe22_E21WHFXBDGA4XVHZQKD5.csv \
+    --labels demo/csv/mabe22_E21WHFXBDGA4XVHZQKD5_labels.csv \
+    --video demo/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 \
+    --model mabe22-strain --sync --frames 1800
 ```
 
-### 2. Fine-tuning (Supervised)
+With a benchmark downloaded (see [Datasets](#datasets)), a recording can be named
+directly from its training config. The ground truth then comes from the dataset,
+and for MABe22 the video also shows the annotated behaviors and places the clip
+among other videos of the dataset in the embedding map:
+
 ```bash
-# Fine-tune for behavior classification
-python scripts/finetune.py \
-    --dataset calms21 \
-    --task task1 \
-    --pretrained_model /path/to/pretrained/model.pt \
-    --epochs 50 \
-    --batch_size 16 \
-    --learning_rate 1e-5
+behavert decode --config configs/mabe22/state.yaml --task strain --recording E21WHFXBDGA4XVHZQKD5 \
+    --model mabe22-strain --video demo/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 --sync --frames 1800
 ```
 
-### 3. Evaluation
-```bash
-# Evaluate model performance
-python scripts/evaluate.py \
-    --model_path /path/to/finetuned/model.pt \
-    --test_data /path/to/test/data \
-    --output_dir /path/to/results
+<br clear="right">
+
+### In Python
+
+```python
+from behavert import BehaVERT
+from behavert.inference import predict_recording
+
+model = BehaVERT.from_pretrained("calms21-task1")
+pred = predict_recording(model, keypoints)   # keypoints: [frames, animals, keypoints, (x, y)]
+pred.labels                                  # one class per frame
+pred.probs                                   # [frames, classes]
+model.config.label_names                     # ['attack', 'investigation', 'mount', 'other']
 ```
 
-### 4. Inference
+Each model's `config.json` records its classes, keypoint layout and
+preprocessing, and `model(x, output_attentions=True)` returns logits,
+embeddings and attention maps.
+
+## Pretrained models
+
+| Model | Task | Input | Output | License |
+|---|---|---|---|---|
+| [`calms21-task1`](https://huggingface.co/ShinSeungJ/behavert/tree/main/calms21-task1) | CalMS21 Task 1, resident–intruder | 2 mice × 7 keypoints | attack / investigation / mount / other, per frame | MIT |
+| [`mabe22-strain`](https://huggingface.co/ShinSeungJ/behavert/tree/main/mabe22-strain) | MABe22 mouse triplets | 3 mice × 12 keypoints | strain, WT or TG, per window and per video | MIT |
+| [`oft-behavior`](https://huggingface.co/ShinSeungJ/behavert/tree/main/oft-behavior) | open field, top view | 1 mouse × 11 keypoints | 7 behaviors, per frame | MIT |
+| [`oft-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/oft-pose) | pose estimation for `oft-behavior` | video | 12 keypoints, 1 mouse | AGPL-3.0 |
+| [`sbea-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/sbea-pose) | pose estimation for SBeA recordings | video | 12 keypoints, 2 mice | AGPL-3.0 |
+
+The short names work in every command and in `BehaVERT.from_pretrained`. Local
+checkpoint folders and other Hub repos work too. The model cards
+([behavior](https://huggingface.co/ShinSeungJ/behavert),
+[pose](https://huggingface.co/ShinSeungJ/behavert-pose)) describe the inputs and
+test-set scores of each model.
+
+## Datasets
+
+All five benchmarks from the paper, prepared for BehaVERT, are on the Hugging Face Hub
+([`ShinSeungJ/behavert-data`](https://huggingface.co/datasets/ShinSeungJ/behavert-data)).
+Download them into `dataset/`, where every command looks by default:
+
 ```bash
-# Run inference on new data
-python scripts/inference.py \
-    --model_path /path/to/model.pt \
-    --input_data /path/to/keypoints.pt \
-    --output_file predictions.csv
-``` -->
-<!-- 
-## 📈 Performance Benchmarks
+behavert download                    # all five benchmarks, about 12 GB
+behavert download calms21 mabe22     # or only the ones you need
+```
 
-### CalMS21 Results
-| Task | Metric | BehavERT | Previous SOTA |
-|------|--------|----------|---------------|
-| Task 1 | F1-Score | **0.847** | 0.823 |
-| Task 2 | Accuracy | **0.912** | 0.891 |
-| Task 3 | mAP | **0.756** | 0.734 |
+| Benchmark | Animals | Keypoints | Tasks | Size |
+|---|---|---|---|---|
+| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2 mice, 2D | 7 per mouse | Task 1 behaviors, Task 3 new behaviors, pretraining | 4.8 GB |
+| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6 GB |
+| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1 GB |
+| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4 GB |
+| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3 GB |
 
-### MABe22 Results
-| Behavior | F1-Score | Precision | Recall |
-|----------|----------|-----------|--------|
-| Contact | **0.823** | 0.834 | 0.812 |
-| Movement | **0.756** | 0.771 | 0.742 |
-| Watching | **0.689** | 0.701 | 0.678 |
+Every benchmark folder already contains a short `sample.mp4` from that dataset,
+so you can see what the recordings look like before downloading. The download
+adds the data and a README per benchmark next to it. See
+[`dataset/README.md`](dataset/README.md) for the layout, licenses and the
+original papers to cite.
 
-### Cross-dataset Transfer
-- **CalMS21 → SBeA**: 15% improvement over training from scratch
-- **MABe22 → Pair24M**: 12% improvement in social behavior detection
-- **Multi-dataset Pretraining**: 8-20% improvement across all tasks -->
+## Training and evaluation
 
-<!-- ## 🔬 Research Applications
+Each experiment in the paper has a YAML config in [`configs/`](configs). Training
+runs on the train / validation split, keeps the best checkpoints and finishes by
+scoring them on the test set:
 
-### Neuroscience
-- **Behavioral Phenotyping**: Automated quantification of behavioral differences
-- **Drug Discovery**: High-throughput behavioral screening
-- **Disease Models**: Behavioral biomarkers for neurological conditions
+```bash
+behavert train configs/calms21/task1.yaml
+```
 
-### Ethology
-- **Social Behavior Analysis**: Automated detection of social interactions
-- **Developmental Studies**: Longitudinal behavioral tracking
-- **Comparative Behavior**: Cross-species behavioral analysis
+Configs that cover several related tasks list them under `tasks:` and take `--task`:
 
-### Animal Welfare
-- **Stress Detection**: Automated monitoring of welfare indicators
-- **Environmental Enrichment**: Quantifying behavioral complexity
-- **Health Monitoring**: Early detection of behavioral abnormalities
+```bash
+behavert train configs/mabe22/behavior.yaml --task chase
+behavert train configs/mabe22/state.yaml --task strain
+```
 
-## 📚 Citation
+Any setting can be changed from the command line with `--set`:
 
-If you use BehavERT in your research, please cite:
+```bash
+behavert train configs/deepethogram/behavior.yaml --set train.epochs=50 data.augmentation.enabled=false
+```
+
+A run writes to its config's `output_dir` (e.g. `outputs/calms21/task1/`):
+
+| Path | Contents |
+|---|---|
+| `best_<metric>/`, `best_loss/`, `last/` | checkpoints (`config.json` + `model.safetensors`), loadable with `from_pretrained` |
+| `history.jsonl` | training and validation metrics per evaluation |
+| `test_results.json` | test-set scores of each checkpoint |
+| `config.yaml` | the exact configuration of the run |
+
+To score any checkpoint, released or your own, on a config's test set:
+
+```bash
+behavert evaluate configs/mabe22/state.yaml mabe22-strain --task strain
+behavert evaluate configs/calms21/task1.yaml outputs/calms21/task1/best_macro_f1
+```
+
+## Training on your own data
+
+[`configs/custom.yaml`](configs/custom.yaml) is a template for your own keypoints.
+The simplest input is a folder with one CSV per recording: one row per frame,
+keypoint coordinates as columns and a `label` column with class names or numbers.
+
+```text
+nose_x,nose_y,left_ear_x,left_ear_y,...,label
+0.512,0.344,0.498,0.330,...,walk
+0.515,0.341,0.501,0.329,...,walk
+```
+
+Rows with an empty label are not scored. For one label per recording (a genotype,
+a treatment), repeat it on every row and use a sequence model (`model.mode: sequence`).
+Set the class names, window length and number of epochs in the template, then:
+
+```bash
+behavert train configs/custom.yaml --data-root /path/to/your/data
+behavert decode --keypoints new_session.csv --model outputs/custom/best_macro_f1 --video new_session.mp4 --sync
+```
+
+Keypoints can also be given as one `.pt`, `.pkl` or `.npz` file holding every
+recording. The template explains both formats, data splits and augmentation.
+
+## Attention and embedding analysis
+
+Two commands run the paper's analyses over a whole dataset, with a released or a
+newly trained checkpoint.
+
+<img align="right" width="320" src="assets/figures/figure1b.png" alt="Behavioral embedding analysis">
+
+**Embeddings.** `behavert embed` projects the embeddings of a dataset's
+recordings (one per frame for token models, one per window for sequence models)
+to 2D with t-SNE or UMAP. It plots them colored by class and measures how well
+they separate the classes:
+
+```bash
+behavert embed configs/calms21/task1.yaml calms21-task1
+behavert embed configs/mabe22/state.yaml mabe22-strain --task strain --method umap
+```
+
+Output: `embedding.csv` (coordinates, true and predicted class of every point),
+`clustering.csv` (NMI, purity, accuracy and F1 of the predictions and of k-means
+clusters), and `embedding.png` / `.svg` / `.pdf` with editable text.
+
+**Attention.** `behavert attention` records, for every window, how attention is
+spread over its frames, and relates it to the model's confidence, its correctness
+and the behaviors taking place:
+
+```bash
+behavert attention configs/mabe22/state.yaml mabe22-strain --task strain --split test
+```
+
+<br clear="right">
+
+| Output | Contents |
+|---|---|
+| `attention_frames.csv` | attention on every frame of every window, with behavior labels when available |
+| `attention_windows.csv` | per window: prediction, confidence, correctness, mean and peakedness of attention |
+| `attention_tests.csv` | statistical comparisons between confidence, correctness and attention peakedness |
+| `behavior_attention.csv` | attention on frames with and without each behavior |
+| `behavior_peaks.csv` | how often each behavior occurs at attention peaks vs elsewhere |
+| `behavior_success_failure.csv` | attention on each behavior in confident correct vs confident wrong windows |
+
+Both commands default to the test split. They take `--split` and
+`--recordings N` to choose the data, and `--out` for the output folder.
+
+## Annotation tools
+
+Two browser-based tools from the paper for labeling training data. They need
+no installation.
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://shinseungj.github.io/annotator/"><img src="assets/figures/keypoint_annotator.png" alt="Keypoint Annotator"></a><br>
+      <b><a href="https://shinseungj.github.io/annotator/">Keypoint Annotator</a></b><br>
+      <sub>Keypoints and bounding boxes on video frames, for one or several animals, exported for YOLO pose training</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://shinseungj.github.io/behavior-annotator/"><img src="assets/figures/behavior_annotator.png" alt="Behavior Annotator"></a><br>
+      <b><a href="https://shinseungj.github.io/behavior-annotator/">Behavior Annotator</a></b><br>
+      <sub>Behavior intervals on a video timeline with keyboard shortcuts, exported as CSV</sub>
+    </td>
+  </tr>
+</table>
+
+## Repository layout
+
+```text
+BehaVERT/
+├── behavert/              Python package
+│   ├── model.py             BehaVERT encoder with token and sequence heads
+│   ├── data/                recording loaders, windows, augmentation
+│   ├── training.py          training loop; losses.py, metrics.py
+│   ├── pretraining.py       masked keypoint modeling
+│   ├── inference.py         prediction on whole recordings
+│   ├── attention.py         attention analysis
+│   ├── clustering.py        embedding maps and clustering metrics
+│   ├── decode/              video / keypoints -> behavior -> rendered videos
+│   └── cli.py               the `behavert` command
+├── configs/               one YAML per experiment, plus custom.yaml
+├── dataset/               benchmark data (`behavert download`) and sample videos
+├── demo/                  demo videos (video/) and keypoints with labels (csv/)
+├── notebooks/             quick-start notebook
+├── scripts/               checkpoint conversion
+└── assets/                figures and videos for this README
+```
+
+## Citation
+
+If you use BehaVERT, please cite:
 
 ```bibtex
-@article{behavert2024,
-  title={BehavERT: BERT-based Animal Behavior Analysis from Keypoint Data},
-  author={[Your Name] and [Collaborators]},
-  journal={International Journal of Computer Vision},
-  year={2024},
-  publisher={Springer}
-} -->
-<!-- ``` -->
-
-<!-- ## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details. -->
-
-### Development Setup
-```bash
-git clone https://github.com/ShinSeungJ/BehavERT.git
-cd BehavERT
-pip install -e ".[dev]"
-pre-commit install
+@article{shin2026behavert,
+  title   = {BehaVERT: A Transformer-Based Motion Language Model for Decoding Behavioral Semantics in Mice},
+  author  = {Shin, Seung Jae and Lee, Junesu and Ko, Chang and Kim, Daesoo},
+  journal = {International Journal of Computer Vision},
+  volume  = {134},
+  pages   = {303},
+  year    = {2026},
+  doi     = {10.1007/s11263-026-02834-y}
+}
 ```
 
-### Running Tests
-```bash
-pytest tests/
-```
+When you use one of the benchmarks or a model trained on it, please also cite
+the original dataset: CalMS21 (Sun et al., NeurIPS 2021 Datasets and Benchmarks),
+MABe22 (Sun et al., ICML 2023), PAIR-R24M (Marshall et al., NeurIPS 2021 Datasets
+and Benchmarks), DeepEthogram (Bohnslav et al., eLife 2021) or SBeA (Han et al.,
+Nature Machine Intelligence 2024). Full references are in
+[`dataset/README.md`](dataset/README.md).
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-<!-- 
-## 🙏 Acknowledgments
-
-- **CalMS21 Challenge**: For providing benchmark datasets and evaluation frameworks
-- **MABe Challenge**: For multi-animal behavior analysis datasets
-- **Transformers Library**: For the foundational BERT implementations
-- **Research Community**: For valuable feedback and collaboration -->
-
-<!-- ## 📞 Contact
-
-- **Primary Author**: [Your Name] ([your.email@institution.edu])
-- **Lab Website**: [Your Lab URL]
-- **Issues**: Please use GitHub Issues for bug reports and feature requests -->
-
-## 🔗 Related Work
-
-- [CalMS21 Challenge](https://www.aicrowd.com/challenges/multi-agent-behavior-challenge-2021)
-- [MABe Challenge](https://www.aicrowd.com/challenges/multi-agent-behavior-challenge-2022)
-- [DeepEthogram](https://github.com/jbohnslav/deepethogram)
-- [SLEAP](https://sleap.ai/)
-- [DeepLabCut](https://deeplabcut.github.io/DeepLabCut/)
-
----
-
-<!-- **BehavERT**: Transforming animal behavior analysis through deep learning 🐭🤖 -->
+- **Code:** [MIT](LICENSE).
+- **Behavior models** (`ShinSeungJ/behavert`): MIT.
+- **Pose models** (`ShinSeungJ/behavert-pose`) and the optional Ultralytics
+  dependency: AGPL-3.0.
+- **Datasets:** our own annotations and keypoints are CC BY 4.0, and data derived
+  from the original benchmarks follows their terms. See [`dataset/README.md`](dataset/README.md).

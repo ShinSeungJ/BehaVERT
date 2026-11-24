@@ -1,0 +1,69 @@
+# PAIR-R24M social interaction — None / Close / Explore / Chase per frame, token model
+# (Table 8, "+Unfold +Aug" row). Both animals together, 72 values per frame.
+# Other Table 8 rows: Base = window stride 64 and augmentation.enabled false;
+# +Unfold = augmentation.enabled false; +Aug = stride 64.
+output_dir: outputs/pair24m/multi
+
+data:
+  format: pair24m_social
+  multi: pair24m/multi
+  # Video-level 60/20/20 split that balances the class mix (behavert.data.recordings.balanced_split).
+  split:
+    method: fixed
+    train:
+      - 20210119_Recording_SR1_SR2_social_vidtwo_markerDataset
+      - 20210121_Recording_SR1_SR2_social_markerDataset
+      - 20210122_Recording_SR1_SR2_social_wvid_markerDataset
+      - 20210125_Recording_SR1_SR3_social_wvid_markerDataset
+      - 20210128_Recording_SR1+SR2_social_wvid_markerDataset
+      - 20210128_Recording_SR1_SR3_social_wvid_markerDataset
+      - 20210128_Recording_SR2+SR3redH_markerDataset
+      - 20210129_Recording_SR1_SR4_social_wvid_markerDataset
+      - 20210201_Recording_SR1_SR5_social_wvid_markerDataset
+      - 20210201_Recording_SR2_SR4red_social_wvid_markerDataset
+      - 20210201_Recording_SR4red_SR5_social_wvid_markerDataset
+      - 20210202_Recording_SR2_SR5red_social_wvid_markerDataset
+      - 20210202_Recording_SR3_SR4red_social_wvid_markerDataset
+      - 20210202_Recording_SR3_SR5red_social_wvid_markerDataset
+      - 20210203_Recording_SR1_SR2_social_wvid_markerDataset
+    valid:
+      - 20210203_Recording_SR1_SR3_social_wvid_markerDataset
+      - 20210203_Recording_SR1_SR4_social_wvid_markerDataset
+      - 20210203_Recording_SR1_SR5_social_wvid_markerDataset
+      - 20210203_Recording_SR2red_SR3_social_wvid_markerDataset
+      - 20210203_Recording_SR2red_SR5_social_wvid_markerDataset
+    test:
+      - 20210203_Recording_SR3_SR4red_social_wvid_markerDataset
+      - 20210203_Recording_SR3_SR5red_social_wvid_markerDataset
+      - 20210203_Recording_SR4_SR5red_social_wvid_markerDataset
+      - 20210204_Recording_SR2red_SR4_social_wvid_markerDataset
+      - 20210219_Recording_SR9red_SR10_social_wvid_markerDataset
+      - 20210223_Recording_SR9_SR10red_social_wvid_markerDataset
+  window: {length: 64, stride: 32, pad_remainder: true}
+  augmentation:
+    enabled: true
+    arena: pair24m
+    classes: [0, 1, 2, 3]       # all windows
+
+model:
+  mode: token
+  num_classes: 4
+  label_names: [none, close, explore, chase]
+  positional_encoding: sinusoidal
+
+loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
+sampler: proportional
+
+train:
+  epochs: 100
+  batch_size: 64
+  eval_batch_size: 256
+  grad_accum: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-4
+  warmup_steps: 100
+  eval_every: 5
+  log_every: 20
+  select_on: macro_f1           # checkpoint selection on the 4-class mean
+  metric_average_classes: [1, 2, 3]   # Table 8 averages Close, Explore, Chase (not None)
+  seed: 42
