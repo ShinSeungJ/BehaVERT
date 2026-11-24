@@ -170,13 +170,13 @@ embeddings and attention maps.
 
 ## Pretrained models
 
-| Model | Task | Input | Output | License |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Model&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Task | Input | Output | License |
 |---|---|---|---|---|
 | [`calms21-task1`](https://huggingface.co/ShinSeungJ/behavert/tree/main/calms21-task1) | CalMS21 Task 1, resident–intruder | 2 mice × 7 keypoints | attack / investigation / mount / other, per frame | MIT |
 | [`mabe22-strain`](https://huggingface.co/ShinSeungJ/behavert/tree/main/mabe22-strain) | MABe22 mouse triplets | 3 mice × 12 keypoints | strain, WT or TG, per window and per video | MIT |
 | [`oft-behavior`](https://huggingface.co/ShinSeungJ/behavert/tree/main/oft-behavior) | open field, top view | 1 mouse × 11 keypoints | 7 behaviors, per frame | MIT |
-| [`oft-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/oft-pose) | pose estimation for `oft-behavior` | video | 12 keypoints, 1 mouse | AGPL-3.0 |
-| [`sbea-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/sbea-pose) | pose estimation for SBeA recordings | video | 12 keypoints, 2 mice | AGPL-3.0 |
+| [`oft-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/oft-pose) | pose estimation for `oft-behavior` | video | 12 keypoints, 1 mouse | AGPL&#8209;3.0 |
+| [`sbea-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/sbea-pose) | pose estimation for SBeA recordings | video | 12 keypoints, 2 mice | AGPL&#8209;3.0 |
 
 The short names work in every command and in `BehaVERT.from_pretrained`. Local
 checkpoint folders and other Hub repos work too. The model cards
@@ -197,11 +197,11 @@ behavert download calms21 mabe22     # or only the ones you need
 
 | Benchmark | Animals | Keypoints | Tasks | Size |
 |---|---|---|---|---|
-| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2 mice, 2D | 7 per mouse | Task 1 behaviors, Task 3 new behaviors, pretraining | 4.8 GB |
-| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6 GB |
-| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1 GB |
-| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4 GB |
-| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3 GB |
+| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2 mice, 2D | 7 per mouse | Task 1 behaviors, Task 3 new behaviors, pretraining | 4.8&nbsp;GB |
+| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6&nbsp;GB |
+| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1&nbsp;GB |
+| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4&nbsp;GB |
+| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3&nbsp;GB |
 
 Every benchmark folder already contains a short `sample.mp4` from that dataset,
 so you can see what the recordings look like before downloading. The download
