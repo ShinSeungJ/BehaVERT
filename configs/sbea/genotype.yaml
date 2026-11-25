@@ -17,7 +17,7 @@ data:
   keypoints: sbea/keypoints
   # 10 recordings per class, shuffled per class with train.seed, 6 / 2 / 2 per class
   split: {method: per_class, train: 0.6, valid: 0.2}
-  window: {length: 128, stride: 64, pad_remainder: true}
+  window: {length: 128, stride: 64}
   augmentation:
     arena: sbea
 
@@ -28,7 +28,6 @@ model:
   embedding_dropout: 0.1
 
 loss: {name: f1}                # soft macro-F1 loss
-sampler: proportional
 
 train:
   epochs: 100
@@ -40,5 +39,4 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: macro_f1
   seed: 42

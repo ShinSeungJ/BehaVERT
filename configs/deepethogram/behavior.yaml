@@ -34,7 +34,7 @@ data:
       - mouse16
       - mouse13
       - mouse14
-  window: {length: 128, stride: 64, pad_remainder: true}
+  window: {length: 128, stride: 64}
   augmentation:
     enabled: true
     arena: deepethogram
@@ -46,7 +46,6 @@ model:
   label_names: [background, locomote, rear, face_groom, body_groom, defecate]
 
 loss: {name: hybrid, gamma: 5.0, alpha: 0.2}
-sampler: proportional
 
 train:
   epochs: 1000
@@ -58,5 +57,4 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: macro_f1           # macro F1 over all 6 classes
   seed: 42

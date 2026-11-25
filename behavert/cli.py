@@ -177,13 +177,14 @@ def cmd_train(args) -> None:
 
     from . import report
     from .model import BehaVERT
-    from .recipes import (build_datasets, build_loss_fn, build_model, build_sampler, evaluate_test, load_config,
-                          print_distribution, resolve_device, test_windows)
+    from .recipes import (build_datasets, build_loss_fn, build_model, build_sampler, default_select_on,
+                          evaluate_test, load_config, print_distribution, resolve_device, test_windows)
     from .training import (TrainConfig, checkpoint_name, classifier_loss_step, evaluate_classifier, fit,
                            make_loader, set_seed)
 
     cfg = _apply_overrides(load_config(args.config, args.task), args.set)
     tcfg = TrainConfig.from_dict(cfg.get("train", {}))
+    tcfg.select_on = tcfg.select_on or default_select_on(cfg)
     out_dir = Path(args.output_dir or cfg.get("output_dir", "outputs/run"))
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))

@@ -12,7 +12,7 @@ data:
   format: mabe22_state
   keypoints: mabe22/mabe22_kpts.pt
   split: {method: stratified, train: 0.6, valid: 0.2}   # video-level 60/20/20 in 10 bins
-  window: {length: 64, stride: 32, pad_remainder: true}
+  window: {length: 64, stride: 32}
   augmentation:
     arena: mabe22
 
@@ -35,15 +35,13 @@ tasks:
     data: {labels: mabe22/task/strain/mabe22_strain.pt, augmentation: {classes: [0, 1]}}
     model: {num_classes: 2, label_names: [WT, TG]}
     loss: {name: f1, class_weights: [0.45, 0.55]}
-    sampler: proportional
-    train: {learning_rate: 1.0e-4, select_on: macro_f1}
+    train: {learning_rate: 1.0e-4}
 
   lights:
     data: {labels: mabe22/task/lights/mabe22_lights.pt, augmentation: {classes: [0, 1]}}
     model: {num_classes: 2, label_names: [lights_off, lights_on]}
     loss: {name: f1, class_weights: [0.45, 0.55]}
-    sampler: proportional
-    train: {learning_rate: 1.0e-4, select_on: macro_f1}
+    train: {learning_rate: 1.0e-4}
 
   experiment_day:   # 0.25 / 0.5 / 0.75 / 1.0 = day 1-4
     data:
@@ -51,8 +49,7 @@ tasks:
       split: {by: value}     # bins sorted by the target value
     model: {problem: regression, num_classes: 1, head_hidden: 384}
     loss: {name: mse}
-    sampler: none
-    train: {learning_rate: 5.0e-5, select_on: loss}
+    train: {learning_rate: 5.0e-5}
 
   time_of_day:      # continuous in (0, 1]
     data:
@@ -60,5 +57,4 @@ tasks:
       split: {by: value}
     model: {problem: regression, num_classes: 1, head_hidden: 384}
     loss: {name: mse}
-    sampler: none
-    train: {learning_rate: 5.0e-5, select_on: loss}
+    train: {learning_rate: 5.0e-5}

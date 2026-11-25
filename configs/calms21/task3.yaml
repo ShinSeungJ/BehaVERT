@@ -8,7 +8,7 @@ data:
   train: calms21/task3_new_behaviors/calms21_task3_train.json
   test: calms21/task3_new_behaviors/calms21_task3_test.json
   split: {method: test_as_valid}   # validation = the test sessions
-  window: {length: 64, stride: 32, pad_remainder: true}   # per session, padded last window
+  window: {length: 64, stride: 32}   # per session, padded last window
   augmentation:
     arena: calms21
     classes: [0, 1]            # all windows
@@ -19,13 +19,11 @@ model:
 
 loss: {name: hybrid, alpha: 0.2}   # class proportions from the training data
 
-sampler: proportional
 
 train:
   eval_batch_size: 512
   eval_every: 5
   log_every: 5
-  select_on: f1_class1         # Table 3 reports the behavior-class F1
   seed: 42
 
 # data.group selects the behavior inside the Task 3 files

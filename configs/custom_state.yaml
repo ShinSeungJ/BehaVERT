@@ -44,7 +44,6 @@ data:
   window:
     length: 128                        # frames per window (at most 511)
     stride: 64                         # frames, or a share of the window (0.5, 1/2); 1 = no overlap
-    pad_remainder: true                # keep the last, shorter piece of each recording
   augmentation:                        # remove this block to train without augmentation
     classes: null                      # augment every window; or a list of class ids
     arena:                             # EDIT: describe your arena, or use a preset name:
@@ -70,7 +69,6 @@ loss:
   # class_weights: [0.4, 0.6]             # in class-id order
   # with weighted_ce, focal or hybrid, classes are weighted by their inverse share of
   # the training windows; class_weight_multipliers: [1, 2] scales those weights per class
-sampler: proportional                  # class-balanced batches; "none" for plain shuffling
 
 train:
   epochs: 50
@@ -82,6 +80,5 @@ train:
   warmup: 10%                          # warm-up: a number of steps (e.g. 200) or a share of all steps
   eval_every: 50                       # validate every N optimizer steps, or epoch
   log_every: 20                        # print the training loss every N steps, or epoch
-  select_on: macro_f1                  # keep the checkpoint with the best validation macro F1
   amp: bf16                            # mixed precision on recent GPUs; remove for full fp32
   seed: 42

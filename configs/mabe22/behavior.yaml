@@ -10,7 +10,7 @@ data:
   format: mabe22_frames
   keypoints: mabe22/mabe22_kpts.pt
   split: {method: stratified, train: 0.6, valid: 0.2}   # bins by each video's fraction of positive frames
-  window: {length: 128, stride: 64, pad_remainder: true}
+  window: {length: 128, stride: 64}
   augmentation:
     arena: mabe22
     classes: [0, 1]            # all windows
@@ -20,7 +20,6 @@ model:
   num_classes: 2
 
 loss: {name: hybrid, gamma: 5.0, alpha: 0.1}
-sampler: proportional
 
 train:
   epochs: 10
@@ -32,7 +31,6 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: f1_class1         # Table 4 reports the behavior-class F1
   seed: 42
 
 tasks:

@@ -11,7 +11,7 @@ data:
   format: sbea_behavior
   keypoints: sbea/keypoints
   behaviors: sbea/behaviors
-  window: {length: 64, stride: 32, pad_remainder: true}
+  window: {length: 64, stride: 32}
   augmentation:
     arena: sbea
 
@@ -19,7 +19,6 @@ model:
   mode: token
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
-sampler: proportional
 
 train:
   epochs: 1000
@@ -31,7 +30,6 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: macro_f1
   seed: 42
 
 # Splits balance the class mix and spread rare classes over all splits.

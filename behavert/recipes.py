@@ -426,6 +426,23 @@ def build_loss_fn(cfg: dict, train: WindowDataset, num_classes: int):
     return build_loss(name, props, **loss_cfg)
 
 
+REST_CLASS_NAMES = ("other", "others", "none")
+
+
+def default_select_on(cfg: dict) -> str:
+    """Checkpoint selection when the config does not set ``train.select_on``: the
+    validation loss for regression; the class-1 F1 when a two-class model scores one
+    behavior against the rest (class 0 named other, others or none); the macro F1
+    otherwise."""
+    m = cfg.get("model", {})
+    if is_regression(cfg):
+        return "loss"
+    names = [str(n).strip().lower() for n in (m.get("label_names") or [])]
+    if m.get("num_classes") == 2 and len(names) == 2 and names[0] in REST_CLASS_NAMES:
+        return "f1_class1"
+    return "macro_f1"
+
+
 def build_sampler(cfg: dict, train: WindowDataset, batch_size: int, num_classes: int):
     if cfg.get("sampler", "proportional") != "proportional" or is_regression(cfg):
         return None

@@ -39,7 +39,7 @@ data:
       - 20210204_Recording_SR2red_SR4_social_wvid_markerDataset
       - 20210219_Recording_SR9red_SR10_social_wvid_markerDataset
       - 20210223_Recording_SR9_SR10red_social_wvid_markerDataset
-  window: {length: 64, stride: 32, pad_remainder: true}
+  window: {length: 64, stride: 32}
   augmentation:
     enabled: true
     arena: pair24m
@@ -51,7 +51,6 @@ model:
   label_names: [none, close, explore, chase]
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
-sampler: proportional
 
 train:
   epochs: 100
@@ -63,6 +62,5 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: macro_f1           # checkpoint selection on the 4-class mean
   metric_average_classes: [1, 2, 3]   # Table 8 averages Close, Explore, Chase (not None)
   seed: 42

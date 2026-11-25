@@ -38,7 +38,9 @@ class TrainConfig:
     patience: Optional[int] = None
     metric_ignore_classes: list[int] = field(default_factory=list)  # frames with these true labels are not scored
     metric_average_classes: Optional[list[int]] = None  # classes averaged into macro_f1 (default: all scored)
-    select_on: str = "macro_f1"  # checkpoint selection: "macro_f1", "f1_class1" or "loss"
+    # checkpoint selection: "macro_f1", "f1_class1" or "loss"; unset picks one from the model
+    # (see recipes.default_select_on)
+    select_on: Optional[str] = None
     amp: Optional[str] = None  # "bf16" | "fp16" | None
     num_workers: int = 0
 

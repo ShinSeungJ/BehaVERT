@@ -10,8 +10,6 @@ data:
   window:
     length: 64
     stride: 32                 # 50% overlap (temporal unfolding)
-    pad_remainder: true
-    concat_recordings: true    # sessions joined into one stream before windowing
   augmentation:
     arena: calms21
     classes: [0, 1, 2, 3]      # augment windows containing any of these classes (here: all)
@@ -27,7 +25,6 @@ loss:
   alpha: 0.2
   class_weight_multipliers: [6, 1, 1, 1]   # attack, investigation, mount, other; scale the inverse-proportion weights
 
-sampler: proportional
 
 train:
   epochs: 2000
@@ -39,5 +36,4 @@ train:
   eval_every: 10
   log_every: 10
   metric_ignore_classes: [3]   # "other" frames are not scored
-  select_on: macro_f1
   seed: 42

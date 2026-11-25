@@ -82,7 +82,7 @@ data:
       - multi/20210128_Recording_SR2+SR3redH_markerDataset/an1
       - multi/20210128_Recording_SR2+SR3redH_markerDataset/an2
       - multi/20210129_Recording_SR1_SR4_social_wvid_markerDataset/an1
-  window: {length: 64, stride: 32, pad_remainder: true}
+  window: {length: 64, stride: 32}
   augmentation:
     enabled: false
     arena: pair24m
@@ -95,7 +95,6 @@ model:
                 crouch_explore, amble, locomotion]
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
-sampler: proportional
 
 train:
   epochs: 100
@@ -107,5 +106,4 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  select_on: macro_f1           # macro F1 over all 11 classes
   seed: 42

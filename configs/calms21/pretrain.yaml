@@ -21,7 +21,7 @@ data:
   format: calms21_pretraining
   train: calms21/calms21_all_keypoints.pt     # every CalMS21 session, labels removed
   split: {method: random_windows, valid: 0.2}  # random 20% of the windows for validation
-  window: {length: 64, stride: 64, pad_remainder: true}    # non-overlapping 64-frame chunks per session
+  window: {length: 64, stride: 64}    # non-overlapping 64-frame chunks per session
   augmentation:
     arena: calms21
 
