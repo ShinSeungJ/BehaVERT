@@ -4,10 +4,10 @@
 #
 # Other window lengths in the paper:
 #   1024 frames: window {length: 1024, stride: 512},
-#     model.max_position_embeddings 1025, epochs 50, learning_rate 1e-5, warmup_steps 15,
+#     model.max_position_embeddings 1025, epochs 50, learning_rate 1e-5,
 #     weight_decay 1e-3
 #   64 frames: window {length: 64, stride: 32},
-#     epochs 50, batch_size 512, grad_accum 1, learning_rate 1e-5, warmup_steps 75,
+#     epochs 50, batch_size 512, grad_accum 1, learning_rate 1e-5,
 #     weight_decay 1e-3
 output_dir: outputs/sbea/genotype
 
@@ -37,7 +37,7 @@ train:
   grad_accum: 16
   learning_rate: 1.0e-6
   weight_decay: 0.01
-  warmup_steps: 150
+  warmup: 10%
   eval_every: 5
   log_every: 20
   select_on: macro_f1

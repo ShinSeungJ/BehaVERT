@@ -36,7 +36,7 @@ train:
   eval_batch_size: 512
   learning_rate: 1.0e-5
   weight_decay: 0.01
-  warmup_steps: 4000
+  warmup: 10%
   eval_every: 10
   log_every: 10
   metric_ignore_classes: [3]   # "other" frames are not scored

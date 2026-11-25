@@ -35,34 +35,34 @@ tasks:
     data: {group: approach}
     model: {label_names: [other, approach]}
     loss: {gamma: 1}
-    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 100, weight_decay: 1.0e-4}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup: 10%, weight_decay: 1.0e-4}
   disengaged:
     data: {group: disengaged}
     model: {label_names: [other, disengaged]}
     loss: {gamma: 1}
-    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 100, weight_decay: 1.0e-4}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup: 10%, weight_decay: 1.0e-4}
   groom:
     data: {group: groom}
     model: {label_names: [other, groom]}
     loss: {gamma: 3}
-    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup_steps: 300, weight_decay: 1.0e-4}
+    train: {epochs: 2000, batch_size: 64, grad_accum: 8, learning_rate: 5.0e-5, warmup: 10%, weight_decay: 1.0e-4}
   intromission:
     data: {group: intromission}
     model: {label_names: [other, intromission]}
     loss: {gamma: 5}
-    train: {epochs: 1000, batch_size: 512, grad_accum: 1, learning_rate: 6.0e-5, warmup_steps: 300, weight_decay: 1.0e-4}
+    train: {epochs: 1000, batch_size: 512, grad_accum: 1, learning_rate: 6.0e-5, warmup: 10%, weight_decay: 1.0e-4}
   mount_attempt:
     data: {group: mount_attempt}
     model: {label_names: [other, mount_attempt]}
     loss: {gamma: 1}
-    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup_steps: 400, weight_decay: 1.0e-3}
+    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup: 10%, weight_decay: 1.0e-3}
   sniff_face:
     data: {group: sniff_face}
     model: {label_names: [other, sniff_face]}
     loss: {gamma: 2}
-    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup_steps: 400, weight_decay: 1.0e-3}
+    train: {epochs: 2000, batch_size: 512, grad_accum: 1, learning_rate: 7.0e-5, warmup: 10%, weight_decay: 1.0e-3}
   whiterearing:
     data: {group: whiterearing}
     model: {label_names: [other, white_rearing]}
     loss: {gamma: 5}
-    train: {epochs: 1000, batch_size: 64, grad_accum: 8, learning_rate: 6.0e-5, warmup_steps: 300, weight_decay: 1.0e-3}
+    train: {epochs: 1000, batch_size: 64, grad_accum: 8, learning_rate: 6.0e-5, warmup: 10%, weight_decay: 1.0e-3}

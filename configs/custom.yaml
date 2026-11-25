@@ -70,7 +70,7 @@ train:
   grad_accum: 1
   learning_rate: 5.0e-5
   weight_decay: 0.01
-  warmup_steps: 200
+  warmup: 10%                          # warm-up: a number of steps (e.g. 200) or a share of all steps
   eval_every: 50                       # optimizer steps between validations
   log_every: 20
   select_on: macro_f1                  # keep the checkpoint with the best validation macro F1

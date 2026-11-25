@@ -56,7 +56,7 @@ train:
   grad_accum: 2
   learning_rate: 5.0e-5
   weight_decay: 1.0e-6
-  warmup_steps: 1000
+  warmup: 10%
   eval_every: 5
   log_every: 20
   select_on: macro_f1           # macro F1 over all 6 classes

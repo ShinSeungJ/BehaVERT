@@ -61,7 +61,7 @@ train:
   grad_accum: 8
   learning_rate: 1.0e-6
   weight_decay: 1.0e-4
-  warmup_steps: 100
+  warmup: 10%
   eval_every: 5
   log_every: 20
   select_on: macro_f1           # checkpoint selection on the 4-class mean

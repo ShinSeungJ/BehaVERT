@@ -27,7 +27,7 @@ class TrainConfig:
     grad_accum: int = 1
     learning_rate: float = 1e-4
     weight_decay: float = 0.01
-    warmup_steps: int = 0
+    warmup: Optional[int | str] = None  # steps (e.g. 4000) or a share of all steps (e.g. "10%"); default 10%
     max_grad_norm: float = 1.0
     eval_every: int = 100  # optimizer steps between validations
     log_every: int = 20
@@ -87,6 +87,24 @@ def evaluate_classifier(model, loader, loss_fn, cfg: TrainConfig, device, label_
     return rep
 
 
+def resolve_warmup(warmup: Optional[int | str], total_steps: int) -> int:
+    """Warm-up length in optimizer steps: an int is a number of steps, a string such
+    as ``"10%"`` a share of ``total_steps``; ``None`` means 10%."""
+    if warmup is None:
+        warmup = "10%"
+    if isinstance(warmup, str):
+        text = warmup.strip()
+        if not text.endswith("%"):
+            raise ValueError(f"train.warmup: give a number of steps or a percentage such as '10%', got {warmup!r}")
+        share = float(text[:-1]) / 100
+        if not 0 <= share <= 1:
+            raise ValueError(f"train.warmup must be between 0% and 100%, got {warmup!r}")
+        return int(round(share * total_steps))
+    if isinstance(warmup, bool) or not isinstance(warmup, int) or warmup < 0:
+        raise ValueError(f"train.warmup: give a number of steps or a percentage such as '10%', got {warmup!r}")
+    return warmup
+
+
 def resolve_patience(patience: Optional[int], epochs: int) -> int:
     """Early-stopping patience in epochs: 20% of ``epochs`` by default and never below
     10% (at least 1); 0 turns early stopping off."""
@@ -123,7 +141,8 @@ def fit(
     total = max(1, math.ceil(len(train_loader) * cfg.epochs / cfg.grad_accum))
     if cfg.max_steps:
         total = min(total, cfg.max_steps)
-    sched = get_linear_schedule_with_warmup(opt, cfg.warmup_steps, total)
+    warmup_steps = resolve_warmup(cfg.warmup, total)
+    sched = get_linear_schedule_with_warmup(opt, warmup_steps, total)
     scaler = torch.amp.GradScaler("cuda", enabled=(cfg.amp == "fp16" and device.type == "cuda"))
 
     best = {"loss": math.inf}
@@ -208,7 +227,8 @@ def fit(
     run_eval()
     save(model, out_dir / "last")
     history.close()
-    summary = {"steps": step, "epochs": epoch, "stopped_early": stopped_early, "best": best,
+    summary = {"steps": step, "total_steps": total, "warmup_steps": warmup_steps, "epochs": epoch,
+               "stopped_early": stopped_early, "best": best,
                "patience": patience, "config": asdict(cfg)}
     (out_dir / "train_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary
