@@ -60,7 +60,13 @@ model:
   positional_encoding: sinusoidal      # or "learned"
   # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
 
-loss: {name: hybrid, gamma: 2.0, alpha: 0.2}   # or ce, weighted_ce, focal, f1
+loss:
+  name: hybrid                         # or ce, weighted_ce, focal, f1
+  gamma: 2.0
+  alpha: 0.2
+  # Classes are weighted by their inverse share of the training frames. To change that:
+  # class_weight_multipliers: [1, 2, 1]   # scale those weights per class (here: double "walk")
+  # class_weights: [0.2, 0.5, 0.3]        # or give the weights yourself, in class-id order
 sampler: proportional                  # class-balanced batches; "none" for plain shuffling
 
 train:

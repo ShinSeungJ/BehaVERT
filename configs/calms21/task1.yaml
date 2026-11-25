@@ -26,7 +26,7 @@ loss:
   name: hybrid
   gamma: 5.0
   alpha: 0.2
-  class_proportions: [0.005, 0.26, 0.056, 0.7]   # hand-set proportions for the class weights
+  class_weight_multipliers: [6, 1, 1, 1]   # attack, investigation, mount, other; scale the inverse-proportion weights
 
 sampler: proportional
 

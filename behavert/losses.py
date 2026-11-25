@@ -1,13 +1,16 @@
 """Losses for imbalanced behavior data (paper Section 3.4).
 
 All losses take logits ``[..., C]`` and integer targets ``[...]``; targets of
-``-1`` (padding) are ignored. Class weights are the normalized inverse class
-proportions: ``w_c = (1 / p_c) / sum_k (1 / p_k)``.
+``-1`` (padding) are ignored. The weighted losses (weighted_ce, focal, hybrid)
+weight class ``c`` by the normalized inverse class proportion of the training data,
+``w_c = (1 / p_c) / sum_k (1 / p_k)``. In a config, ``class_weights`` gives the
+weights directly instead, and ``class_weight_multipliers`` scales either per class
+(e.g. ``[2, 1, 1]`` doubles the share of class 0); weights are normalized to sum to 1.
 """
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Optional, Sequence
 
 import torch
 import torch.nn as nn
@@ -17,6 +20,29 @@ import torch.nn.functional as F
 def inverse_proportion_weights(proportions: Sequence[float]) -> torch.Tensor:
     p = torch.as_tensor(proportions, dtype=torch.float32).clamp(min=1e-8)
     w = 1.0 / p
+    return w / w.sum()
+
+
+def resolve_class_weights(
+    class_proportions: Optional[Sequence[float]] = None,
+    class_weights: Optional[Sequence[float]] = None,
+    class_weight_multipliers: Optional[Sequence[float]] = None,
+) -> torch.Tensor:
+    """Per-class weights summing to 1: ``class_weights`` if given, else the inverse
+    ``class_proportions``, then multiplied by ``class_weight_multipliers``."""
+    if class_weights is not None:
+        w = torch.as_tensor(class_weights, dtype=torch.float32)
+    elif class_proportions is not None:
+        w = inverse_proportion_weights(class_proportions)
+    else:
+        raise ValueError("class weights need class_weights or the class proportions of the training data")
+    if class_weight_multipliers is not None:
+        m = torch.as_tensor(class_weight_multipliers, dtype=torch.float32)
+        if m.shape != w.shape:
+            raise ValueError(f"class_weight_multipliers has {m.numel()} values for {w.numel()} classes")
+        w = w * m
+    if (w < 0).any() or w.sum() <= 0:
+        raise ValueError("class weights must be non-negative and not all zero")
     return w / w.sum()
 
 
@@ -39,9 +65,12 @@ class _Masked(nn.Module):
 class WeightedCrossEntropyLoss(_Masked):
     """Cross-entropy with inverse-proportion class weights (``Lwce``)."""
 
-    def __init__(self, class_proportions: Sequence[float], reduction: str = "mean"):
+    def __init__(self, class_proportions: Optional[Sequence[float]] = None, reduction: str = "mean",
+                 class_weights: Optional[Sequence[float]] = None,
+                 class_weight_multipliers: Optional[Sequence[float]] = None):
         super().__init__(reduction)
-        self.register_buffer("weights", inverse_proportion_weights(class_proportions))
+        self.register_buffer("weights", resolve_class_weights(class_proportions, class_weights,
+                                                              class_weight_multipliers))
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         valid = (targets >= 0).float()
@@ -53,37 +82,43 @@ class WeightedCrossEntropyLoss(_Masked):
 class FocalLoss(_Masked):
     """One-vs-rest focal loss, ``alpha_c (1 - p_t)^gamma BCE``, averaged over classes."""
 
-    def __init__(self, class_proportions: Sequence[float], gamma: float = 2.0, reduction: str = "mean"):
+    def __init__(self, class_proportions: Optional[Sequence[float]] = None, gamma: float = 2.0,
+                 reduction: str = "mean", class_weights: Optional[Sequence[float]] = None,
+                 class_weight_multipliers: Optional[Sequence[float]] = None):
         super().__init__(reduction)
         self.gamma = gamma
-        self.register_buffer("alpha", inverse_proportion_weights(class_proportions))
+        self.register_buffer("weights", resolve_class_weights(class_proportions, class_weights,
+                                                              class_weight_multipliers))
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         valid = (targets >= 0).float()
         t = targets.clamp(min=0).long()
         onehot = F.one_hot(t, logits.shape[-1]).float()
         bce = F.binary_cross_entropy_with_logits(logits.float(), onehot, reduction="none")
-        focal = self.alpha * (1 - torch.exp(-bce)) ** self.gamma * bce
+        focal = self.weights * (1 - torch.exp(-bce)) ** self.gamma * bce
         return self._reduce(focal.mean(-1), valid)
 
 
 class HybridLoss(_Masked):
     """``(1 - alpha) * weighted CE + alpha * focal`` (paper Eq. 10).
 
-    The focal term here is unweighted, as in the code used for the paper.
+    The class weights apply to the cross-entropy term; the focal term is unweighted.
     """
 
     def __init__(
         self,
-        class_proportions: Sequence[float],
+        class_proportions: Optional[Sequence[float]] = None,
         gamma: float = 2.0,
         alpha: float = 0.5,
         reduction: str = "mean",
+        class_weights: Optional[Sequence[float]] = None,
+        class_weight_multipliers: Optional[Sequence[float]] = None,
     ):
         super().__init__(reduction)
         self.gamma = gamma
         self.alpha = alpha
-        self.register_buffer("weights", inverse_proportion_weights(class_proportions))
+        self.register_buffer("weights", resolve_class_weights(class_proportions, class_weights,
+                                                              class_weight_multipliers))
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         logits = logits.float()
@@ -108,14 +143,20 @@ class CrossEntropyLoss(nn.CrossEntropyLoss):
 class SoftF1Loss(nn.Module):
     """``1 - macro F1`` computed from softmax probabilities (paper Eq. 14).
 
-    Frame targets of ``-1`` are ignored. Optional ``class_weights`` turn the
-    macro average into a weighted one. Class proportions are not used.
+    Frame targets of ``-1`` are ignored. Optional ``class_weights`` (and/or
+    ``class_weight_multipliers``) turn the macro average into a weighted one.
+    Class proportions are not used.
     """
 
-    def __init__(self, class_proportions=None, class_weights: Sequence[float] | None = None, eps: float = 1e-7):
+    def __init__(self, class_proportions=None, class_weights: Sequence[float] | None = None, eps: float = 1e-7,
+                 class_weight_multipliers: Sequence[float] | None = None):
         super().__init__()
         self.eps = eps
-        self.class_weights = None if class_weights is None else torch.as_tensor(class_weights, dtype=torch.float32)
+        w = class_weights
+        if class_weight_multipliers is not None:
+            w = torch.as_tensor(class_weights if class_weights is not None else [1.0] * len(class_weight_multipliers),
+                                dtype=torch.float32) * torch.as_tensor(class_weight_multipliers, dtype=torch.float32)
+        self.class_weights = None if w is None else torch.as_tensor(w, dtype=torch.float32)
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         C = logits.shape[-1]
@@ -148,6 +189,8 @@ class MSELoss(nn.Module):
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(outputs.float().reshape(targets.shape), targets.float())
 
+
+WEIGHTED_LOSSES = ("weighted_ce", "focal", "hybrid")  # weighted by class (see the module docstring)
 
 LOSSES = {
     "ce": CrossEntropyLoss,

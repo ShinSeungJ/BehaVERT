@@ -24,7 +24,7 @@ from .data import recordings as R
 from .data.augmentation import augment, get_arena
 from .data.dataset import ProportionalBatchSampler, WindowDataset, subset_windows, windows_from_recordings
 from .inference import predict_windows
-from .losses import build_loss
+from .losses import WEIGHTED_LOSSES, build_loss
 from .metrics import classification_report, format_report, recording_decision, regression_report
 from .model import BehaVERT, BehaVERTConfig
 
@@ -242,14 +242,17 @@ def build_model(cfg: dict, input_dim: int) -> BehaVERT:
 def build_loss_fn(cfg: dict, train: WindowDataset, num_classes: int):
     loss_cfg = dict(cfg.get("loss", {"name": "hybrid"}))
     name = loss_cfg.pop("name")
-    props = loss_cfg.pop("class_proportions", None)
-    if props is None and name not in ("mse", "f1"):
-        props = train.class_proportions(num_classes)
-    if props is not None:
-        print(f"loss: {name}  class proportions: {np.round(props, 4).tolist()}  {loss_cfg}")
+    # the weighted losses weight classes by the training data's inverse class proportions
+    # unless the config gives class_weights; class_weight_multipliers scale either
+    props = train.class_proportions(num_classes) if name in WEIGHTED_LOSSES and "class_weights" not in loss_cfg else None
+    loss_fn = build_loss(name, props, **loss_cfg)
+    weights = getattr(loss_fn, "weights", None)
+    shown = {k: v for k, v in loss_cfg.items() if k not in ("class_weights", "class_weight_multipliers")}
+    if weights is not None:
+        print(f"loss: {name}  class weights: {np.round(weights.tolist(), 4).tolist()}  {shown}")
     else:
         print(f"loss: {name}  {loss_cfg}")
-    return build_loss(name, props, **loss_cfg)
+    return loss_fn
 
 
 def build_sampler(cfg: dict, train: WindowDataset, batch_size: int, num_classes: int):

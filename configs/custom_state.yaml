@@ -64,7 +64,12 @@ model:
   embedding_dropout: 0.1
   # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
 
-loss: {name: f1}                       # or ce, weighted_ce, focal, hybrid
+loss:
+  name: f1                             # or ce, weighted_ce, focal, hybrid
+  # f1 averages the per-class F1 equally; to weight the classes:
+  # class_weights: [0.4, 0.6]             # in class-id order
+  # with weighted_ce, focal or hybrid, classes are weighted by their inverse share of
+  # the training windows; class_weight_multipliers: [1, 2] scales those weights per class
 sampler: proportional                  # class-balanced batches; "none" for plain shuffling
 
 train:
