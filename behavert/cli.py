@@ -64,14 +64,120 @@ def _check_model_fits_config(model, cfg, command: str, classification_only: bool
         raise SystemExit(f"`behavert {command}` works with classification models")
 
 
+# ------------------------------------------------------------------ run settings shown in the log
+def _config_name(args) -> str:
+    return f"{args.config} (task: {args.task})" if getattr(args, "task", None) else str(args.config)
+
+
+def _model_desc(cfg: dict, short: bool = False) -> str:
+    m = cfg.get("model", {})
+    mode = m.get("mode", "token")
+    if m.get("problem") == "regression":
+        return "sequence regression"
+    if short:
+        return mode
+    names = m.get("label_names") or []
+    return f"{mode}, {m.get('num_classes', len(names))} classes" + (f" ({', '.join(names)})" if names else "")
+
+
+def _loss_rows(cfg: dict) -> list:
+    loss = dict(cfg.get("loss") or {"name": "hybrid"})
+    name = loss.pop("name")
+    mult = loss.pop("class_weight_multipliers", None)
+    loss.pop("class_weights", None)
+    params = ", ".join(f"{k} {v}" for k, v in loss.items())
+    rows = [("Loss function", f"{name} ({params})" if params else name)]
+    if mult is not None:
+        rows.append(("Weight multipliers", str(list(mult))))
+    return rows
+
+
+def _augmentation_rows(cfg: dict) -> list:
+    from . import report
+
+    aug = cfg["data"].get("augmentation")
+    if not aug or not aug.get("enabled", True):
+        return [("Augmentation", "off")]
+    arena = aug.get("arena")
+    classes = aug.get("classes")
+    names = cfg.get("model", {}).get("label_names")
+    return [("Augmentation", f"{arena} arena" if isinstance(arena, str) else "custom arena"),
+            ("Augment classes", "all windows" if classes is None else report.named(classes, names))]
+
+
+def _window_rows(cfg: dict) -> list:
+    w = cfg["data"]["window"]
+    return [("Max seq length", w["length"]), ("Sequence stride", w.get("stride") or w["length"] // 2)]
+
+
+def _start_rows(args, cfg: dict, tcfg, out_dir, pretraining: bool = False) -> list:
+    from . import report
+    from .training import resolve_patience
+
+    rows = [("Config", _config_name(args)), ("Output dir", out_dir)]
+    if cfg.get("model", {}).get("init_from"):
+        rows.append(("Pretrain checkpoint", cfg["model"]["init_from"]))
+    if pretraining:
+        if "use_all_data" in cfg:
+            rows.append(("Use all data", bool(cfg["use_all_data"])))
+        rows.append(("Mask ratio", cfg["pretraining"]["mask_ratio"]))
+    else:
+        rows.append(("Model", _model_desc(cfg)))
+    rows += _window_rows(cfg) + _augmentation_rows(cfg)
+    if not pretraining:
+        rows += _loss_rows(cfg)
+    rows += [("Batch size", tcfg.batch_size), ("Learning rate", report.number(tcfg.learning_rate)),
+             ("Epochs", tcfg.epochs), ("Early stop patience", resolve_patience(tcfg.patience, tcfg.epochs)),
+             ("Seed", tcfg.seed)]
+    return rows
+
+
+def _hyperparameter_rows(args, cfg: dict, tcfg, out_dir, summary: dict, pretraining: bool = False) -> list:
+    from . import report
+
+    rows = [("Config", _config_name(args)), ("Output dir", out_dir)]
+    if cfg.get("model", {}).get("init_from"):
+        rows.append(("Pretrain checkpoint", cfg["model"]["init_from"]))
+    if pretraining:
+        if "use_all_data" in cfg:
+            rows.append(("Use all data", bool(cfg["use_all_data"])))
+        rows.append(("Mask ratio", cfg["pretraining"]["mask_ratio"]))
+    else:
+        rows.append(("Model", _model_desc(cfg, short=True)))
+        rows += _loss_rows(cfg)
+        regression = cfg.get("model", {}).get("problem") == "regression"
+        rows.append(("Sampler", "none" if regression else cfg.get("sampler", "proportional")))
+    epochs = f"{tcfg.epochs}" + (f" (early stop at {summary['epochs']})" if summary.get("stopped_early") else "")
+    steps, total = summary["warmup_steps"], summary["total_steps"]
+    n = f"{steps} step" + ("" if steps == 1 else "s")
+    warmup = (f"{n} ({100 * steps / total:.2f}%)" if isinstance(tcfg.warmup, int)
+              else f"{tcfg.warmup or '10%'} ({n})")
+    rows += [("Epochs", epochs), ("Batch size", tcfg.batch_size), ("Learning rate", report.number(tcfg.learning_rate)),
+             ("Weight decay", report.number(tcfg.weight_decay)), ("Warmup", warmup), ("Total steps", total),
+             ("Grad accum steps", tcfg.grad_accum)]
+    rows += _window_rows(cfg) + [("Max grad norm", report.number(tcfg.max_grad_norm))] + _augmentation_rows(cfg)
+    rows += [("Report every step", tcfg.log_every), ("Eval every step", tcfg.eval_every),
+             ("Early stop patience", summary["patience"]), ("Seed", tcfg.seed)]
+    return rows
+
+
+def _table_kind(cfg: dict) -> str:
+    m = cfg.get("model", {})
+    if m.get("problem") == "regression":
+        return "regression"
+    return "sequence" if m.get("mode") == "sequence" else "token"
+
+
 # ------------------------------------------------------------------ train
 def cmd_train(args) -> None:
     import yaml
 
+    from . import report
     from .model import BehaVERT
     from .recipes import (build_datasets, build_loss_fn, build_model, build_sampler, evaluate_test, load_config,
-                          resolve_device)
-    from .training import TrainConfig, classifier_loss_step, evaluate_classifier, fit, make_loader, set_seed
+                          print_distribution, resolve_device, test_windows)
+    from .training import (TrainConfig, checkpoint_name, classifier_loss_step, evaluate_classifier, fit,
+                           make_loader, set_seed)
 
     cfg = _apply_overrides(load_config(args.config, args.task), args.set)
     tcfg = TrainConfig.from_dict(cfg.get("train", {}))
@@ -80,13 +186,20 @@ def cmd_train(args) -> None:
     (out_dir / "config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))
     set_seed(tcfg.seed)
     device = resolve_device(args.device)
-
+    kind = _table_kind(cfg)
     sequence = cfg["model"].get("mode", "token") == "sequence"
-    ds = build_datasets(cfg, args.data_root, tcfg.seed, sequence_labels=sequence)
-    print(f"windows: train {len(ds.train)}, valid {len(ds.valid) if ds.valid else 0}, "
-          f"test recordings {len(ds.test_recordings) if ds.test_recordings else 0}")
 
+    title = "FINE-TUNING FROM PRETRAINED MODEL" if cfg["model"].get("init_from") else "TRAINING CONFIGURATION"
+    report.block(title, _start_rows(args, cfg, tcfg, out_dir))
+    ds = build_datasets(cfg, args.data_root, tcfg.seed, sequence_labels=sequence)
     model = build_model(cfg, ds.train.w.inputs.shape[-1]).to(device)
+    print()
+    print_distribution("Train", ds.train.w, cfg, sequence, ds.train_recordings)
+    if ds.valid is not None:
+        print()
+        print_distribution("Validation", ds.valid.w, cfg, sequence, ds.valid_recordings)
+    print()
+
     n_cls = model.config.num_classes
     loss_fn = build_loss_fn(cfg, ds.train, n_cls).to(device)
     sampler = build_sampler(cfg, ds.train, tcfg.batch_size, n_cls)
@@ -96,30 +209,41 @@ def cmd_train(args) -> None:
     if valid_loader is not None:
         evaluate = lambda m: evaluate_classifier(m, valid_loader, loss_fn, tcfg, device, m.config.label_names)  # noqa: E731
 
-    summary = fit(model, train_loader, tcfg, out_dir, classifier_loss_step(loss_fn), evaluate, select_on=tcfg.select_on)
-    print(json.dumps(summary["best"], indent=2))
+    log = report.TrainingReport("regression" if kind == "regression" else "classification",
+                                "behavior" if kind == "token" else cfg.get("label_title", "class"))
+    summary = fit(model, train_loader, tcfg, out_dir, classifier_loss_step(loss_fn), evaluate,
+                  select_on=tcfg.select_on, report=log)
 
     test_recordings = ds.test_recordings
     del ds, train_loader, valid_loader, evaluate, sampler  # free the training windows before testing
     gc.collect()
-    if test_recordings and not args.skip_test:
-        results = {}
-        for name in dict.fromkeys((f"best_{tcfg.select_on}", "best_loss", "last")):
-            d = out_dir / name
-            if d.exists():
-                print(f"\n=== {name} ===")
-                results[name] = evaluate_test(BehaVERT.from_pretrained(d, device=device), cfg, test_recordings,
-                                              tcfg.eval_batch_size)
-        (out_dir / "test_results.json").write_text(json.dumps(results, indent=2) + "\n")
+    print()
+    if not test_recordings or args.skip_test:
+        report.block("HYPERPARAMETERS", _hyperparameter_rows(args, cfg, tcfg, out_dir, summary), close=False)
+        return
+    windows = test_windows(cfg, test_recordings)
+    print_distribution("Test", windows[0], cfg, sequence, len(test_recordings))
+    print()
+    report.block("HYPERPARAMETERS", _hyperparameter_rows(args, cfg, tcfg, out_dir, summary), close=False)
+    results = {}
+    for name in dict.fromkeys(("best_loss", checkpoint_name(tcfg.select_on), "last")):
+        d = out_dir / name
+        if d.exists():
+            results[name] = evaluate_test(BehaVERT.from_pretrained(d, device=device), cfg, test_recordings,
+                                          tcfg.eval_batch_size, windows)
+    report.inference_table(results, kind)
+    (out_dir / "test_results.json").write_text(json.dumps(results, indent=2) + "\n")
 
 
 # ------------------------------------------------------------------ pretrain
 def cmd_pretrain(args) -> None:
     import yaml
 
+    from . import report
+    from .data.dataset import WindowDataset
     from .model import BehaVERTConfig
     from .pretraining import MaskedKeypointModel, evaluate_pretraining, pretrain_loss_step
-    from .recipes import _merge, build_datasets, load_config, resolve_device
+    from .recipes import _merge, build_datasets, load_config, print_distribution, resolve_device, test_windows
     from .training import TrainConfig, fit, make_loader, set_seed
 
     cfg = _apply_overrides(load_config(args.config, args.task), args.set)
@@ -138,9 +262,16 @@ def cmd_pretrain(args) -> None:
     set_seed(tcfg.seed)
     device = resolve_device(args.device)
     ratio = cfg["pretraining"]["mask_ratio"]
+    units = cfg["pretraining"].get("units", "")
 
+    report.block("PRETRAINING CONFIGURATION", _start_rows(args, cfg, tcfg, out_dir, pretraining=True))
     ds = build_datasets(cfg, args.data_root, tcfg.seed, sequence_labels=False)
-    print(f"windows: train {len(ds.train)}, valid {len(ds.valid) if ds.valid else 0}")
+    print()
+    print_distribution("Train", ds.train.w, cfg, False, pretraining=True)
+    if ds.valid is not None:
+        print()
+        print_distribution("Validation", ds.valid.w, cfg, False, pretraining=True)
+    print()
     m = dict(cfg.get("model", {}))
     m.pop("init_from", None)
     config = BehaVERTConfig(
@@ -154,33 +285,41 @@ def cmd_pretrain(args) -> None:
     loader = make_loader(ds.train, tcfg.batch_size, shuffle=True, num_workers=tcfg.num_workers)
     valid = make_loader(ds.valid, tcfg.eval_batch_size) if ds.valid else None
     evaluate = (lambda mdl: evaluate_pretraining(mdl, valid, ratio, tcfg.seed)) if valid else None
-    summary = fit(model, loader, tcfg, out_dir, pretrain_loss_step(ratio), evaluate, select_on=None)
-    print(json.dumps(summary["best"], indent=2))
+    summary = fit(model, loader, tcfg, out_dir, pretrain_loss_step(ratio), evaluate, select_on=None,
+                  report=report.TrainingReport("pretraining", units=units))
 
+    print()
+    rows = _hyperparameter_rows(args, cfg, tcfg, out_dir, summary, pretraining=True)
     # with a data.test file (e.g. CalMS21 with --use-all-data false) the encoder is
     # scored on it: reconstruction error of the masked coordinates, in keypoint units
-    if ds.test_recordings and not args.skip_test:
-        from .recipes import make_windows
-        from .data.dataset import WindowDataset
-
-        test_w, _ = make_windows(ds.test_recordings, cfg["data"]["window"])
-        test_loader = make_loader(WindowDataset(test_w), tcfg.eval_batch_size)
-        results = {}
-        for name in ("best_loss", "last"):
-            d = out_dir / name
-            if d.exists():
-                rep = evaluate_pretraining(MaskedKeypointModel.from_pretrained(d, device), test_loader, ratio, tcfg.seed)
-                results[name] = rep
-                print(f"\n=== {name} ===\ntest (masked coordinates):\n"
-                      f"  MSE {rep['loss']:.4f}   RMSE {rep['rmse']:.4f}   MAE {rep['mae']:.4f}   "
-                      f"(keypoint units, {len(test_w.inputs)} windows)")
-        (out_dir / "test_results.json").write_text(json.dumps(results, indent=2) + "\n")
+    if not ds.test_recordings or args.skip_test:
+        report.block("HYPERPARAMETERS", rows, close=False)
+        print()
+        report.banner("TRAINING COMPLETE")
+        if not ds.test_recordings:
+            print("No test set: all the data was used for pretraining.")
+        print(f"The encoder in {out_dir / 'best_loss'} is ready for fine-tuning.")
+        return
+    test_w, _ = test_windows(cfg, ds.test_recordings)
+    print_distribution("Test", test_w, cfg, False, pretraining=True)
+    print()
+    report.block("HYPERPARAMETERS", rows, close=False)
+    test_loader = make_loader(WindowDataset(test_w), tcfg.eval_batch_size)
+    results = {}
+    for name in ("best_loss", "last"):
+        d = out_dir / name
+        if d.exists():
+            results[name] = evaluate_pretraining(MaskedKeypointModel.from_pretrained(d, device), test_loader,
+                                                 ratio, tcfg.seed)
+    report.inference_table(results, "pretraining", units)
+    (out_dir / "test_results.json").write_text(json.dumps(results, indent=2) + "\n")
 
 
 # ------------------------------------------------------------------ evaluate
 def cmd_evaluate(args) -> None:
+    from . import report
     from .model import BehaVERT
-    from .recipes import evaluate_test, load_config, load_split_recordings, resolve_device
+    from .recipes import evaluate_test, load_config, load_split_recordings, print_distribution, resolve_device, test_windows
 
     cfg = load_config(args.config, args.task)
     recs = load_split_recordings(cfg, args.data_root, cfg.get("train", {}).get("seed", 42))
@@ -188,8 +327,11 @@ def cmd_evaluate(args) -> None:
         raise SystemExit("this config defines no test set")
     model = BehaVERT.from_pretrained(args.checkpoint, device=resolve_device(args.device))
     _check_model_fits_config(model, cfg, "evaluate")
-    print(f"{args.checkpoint}: {len(recs['test'])} test recordings")
-    results = evaluate_test(model, cfg, recs["test"], args.batch_size)
+    windows = test_windows(cfg, recs["test"])
+    print()
+    print_distribution("Test", windows[0], cfg, cfg["model"].get("mode") == "sequence", len(recs["test"]))
+    results = {Path(str(args.checkpoint)).name: evaluate_test(model, cfg, recs["test"], args.batch_size, windows)}
+    report.inference_table(results, _table_kind(cfg))
     if args.output:
         Path(args.output).write_text(json.dumps(results, indent=2) + "\n")
 

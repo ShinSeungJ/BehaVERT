@@ -10,6 +10,7 @@
 #     epochs 50, batch_size 512, grad_accum 1, learning_rate 1e-5,
 #     weight_decay 1e-3
 output_dir: outputs/sbea/genotype
+label_title: genotype              # first column of the validation table
 
 data:
   format: sbea_genotype

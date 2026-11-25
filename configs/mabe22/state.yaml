@@ -6,6 +6,7 @@
 # from its averaged window probabilities) and experiment_day, time_of_day (regression;
 # test metric = window-level MSE). strain uses the settings of the released checkpoint.
 output_dir: outputs/mabe22/state/{task}
+label_title: state                 # first column of the validation table
 
 data:
   format: mabe22_state

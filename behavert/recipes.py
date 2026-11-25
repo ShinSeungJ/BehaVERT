@@ -20,12 +20,13 @@ import torch
 import yaml
 from sklearn.model_selection import train_test_split
 
+from . import report
 from .data import recordings as R
 from .data.augmentation import augment, get_arena
 from .data.dataset import ProportionalBatchSampler, WindowDataset, subset_windows, windows_from_recordings
 from .inference import predict_windows
 from .losses import WEIGHTED_LOSSES, build_loss
-from .metrics import classification_report, format_report, recording_decision, regression_report
+from .metrics import classification_report, recording_decision, regression_report
 from .model import BehaVERT, BehaVERTConfig
 
 # where `behavert download` puts the benchmark data (run commands from the repository root)
@@ -111,6 +112,65 @@ def _load_pool(data: dict, root, regression: bool) -> list[R.Recording]:
     raise ValueError(f"unknown data format {fmt!r}")
 
 
+def _count(folder, pattern: str) -> int:
+    return len(list(Path(folder).glob(pattern)))
+
+
+def _load_pool_checked(cfg: dict, root) -> list[R.Recording]:
+    """``_load_pool`` with the loading check: each source, then what was matched."""
+    data = cfg["data"]
+    fmt = data["format"]
+    P = lambda key: _path(data[key], root)  # noqa: E731
+    names = cfg.get("model", {}).get("label_names") or []
+    if fmt in ("mabe22_state", "mabe22_frames"):
+        report.loading("keypoints", P("keypoints"))
+        report.loaded(f"Loaded {len(R._mabe22_keypoints(P('keypoints'))):,} recordings")
+        task = cfg.get("task")
+        report.loading(f"{task} labels" if task else "labels", P("labels"))
+        report.loaded(f"Loaded {len(torch.load(P('labels'), map_location='cpu', weights_only=False)):,} recordings")
+        recs = _load_pool(data, root, is_regression(cfg))
+        report.loaded(report.recordings_summary(recs, "Matched"))
+    elif fmt == "deepethogram":
+        report.loading("keypoints", P("keypoints"))
+        report.loaded(f"Loaded {_count(P('keypoints'), 'mouse*.csv'):,} recordings")
+        report.loading("labels", P("labels"))
+        report.loaded(f"Loaded {_count(P('labels'), '*_labels.csv'):,} recordings")
+        recs = _load_pool(data, root, False)
+        report.loaded(report.recordings_summary(recs, "Matched"))
+    elif fmt == "pair24m_single":
+        report.loading("single-animal data", P("single"))
+        report.loaded(f"Loaded {_count(P('single'), '*_markerDataset.csv'):,} recordings")
+        if data.get("multi"):
+            n = _count(P("multi"), "*_markerDataset.csv")
+            report.loading("two-animal data", P("multi"), "each animal is its own recording")
+            report.loaded(f"Loaded {n:,} files, {2 * n:,} recordings")
+        recs = _load_pool(data, root, False)
+        report.loaded(report.recordings_summary(recs, "In total"))
+    elif fmt == "pair24m_social":
+        report.loading("two-animal data", P("multi"))
+        recs = _load_pool(data, root, False)
+        report.loaded(report.recordings_summary(recs))
+    elif fmt == "sbea_genotype":
+        report.loading("keypoints", P("keypoints"))
+        recs = _load_pool(data, root, False)
+        counts = np.bincount([int(r.label) for r in recs], minlength=len(names))
+        groups = ", ".join(f"{n}: {c}" for n, c in zip(names, counts))
+        summary = report.recordings_summary(recs)
+        head, tail = summary.split(" recordings, ", 1)
+        report.loaded(f"{head} recordings ({groups}), {tail}")
+    elif fmt == "sbea_behavior":
+        report.loading("keypoints", P("keypoints"))
+        report.loading("behavior labels", P("behaviors"), data.get("mode", "social"))
+        recs = _load_pool(data, root, False)
+        report.loaded(report.recordings_summary(recs))
+    else:
+        recs = _load_pool(data, root, is_regression(cfg))
+    return recs
+
+
+FILE_KEYS = (("train", "data"), ("valid", "validation data"), ("test", "test data"))
+
+
 def _load_file(data: dict, key: str, root, label_names=None) -> Optional[list[R.Recording]]:
     if not data.get(key):
         return None
@@ -145,15 +205,20 @@ def load_split_recordings(cfg: dict, root, seed: int) -> dict[str, Optional[list
 
     if data["format"] in FILE_FORMATS:
         names = cfg.get("model", {}).get("label_names")
-        train, test = _load_file(data, "train", root, names), _load_file(data, "test", root, names)
-        valid = _load_file(data, "valid", root, names)
+        files = {}
+        for key, what in FILE_KEYS:
+            if data.get(key):
+                report.loading(what, _path(data[key], root), f"behavior: {data['group']}" if data.get("group") else "")
+                files[key] = _load_file(data, key, root, names)
+                report.loaded(report.recordings_summary(files[key]))
+        train, valid, test = files.get("train"), files.get("valid"), files.get("test")
         if method == "test_as_valid":  # paper CalMS21 Task 3: no separate validation set
             return {"train": train, "valid": test, "test": test}
         if method == "random_windows" or valid is not None:
             return {"train": train, "valid": valid, "test": test}
         pool, given_test = train, test
     else:
-        pool, given_test = _load_pool(data, root, is_regression(cfg)), None
+        pool, given_test = _load_pool_checked(cfg, root), None
 
     tr_frac, va_frac = split.get("train", 0.6), split.get("valid", 0.2)
     if given_test:  # a separate test file: the pool only provides train and valid
@@ -173,7 +238,43 @@ def load_split_recordings(cfg: dict, root, seed: int) -> dict[str, Optional[list
                       [pool[i] for i in idx[n_tr + n_va:]])
     else:
         raise ValueError(f"unknown split method {method!r}")
-    return {"train": tr, "valid": va, "test": given_test or te}
+    test = given_test or te
+    report.step_line(f"Splitting recordings: {_split_description(cfg, method, split, tr_frac, va_frac, seed, given_test)}",
+                     f"train: {len(tr):,} recordings, valid: {len(va):,}, test: {len(test):,}")
+    return {"train": tr, "valid": va, "test": test}
+
+
+def _split_description(cfg: dict, method: str, split: dict, tr: float, va: float, seed: int, given_test) -> str:
+    if method == "fixed":
+        return "fixed lists in the config"
+    shares = f"train {tr:g}, valid {va:g}" + ("" if given_test else f", test {1 - tr - va:.2g}")
+    if method == "stratified":
+        if split.get("by") == "value":
+            how = "stratified by value"
+        elif cfg.get("model", {}).get("mode") == "sequence":
+            how = "stratified by label"
+        else:
+            how = f"stratified by {cfg.get('task') or 'labelled'} frames"
+    elif method == "per_class":
+        how = "per class"
+    elif method == "balanced":
+        return f"balanced by class frames ({shares})"
+    else:
+        how = "random"
+    return f"{how} ({shares}; seed {seed})"
+
+
+def count_windows(recs: list[R.Recording], window: dict) -> int:
+    """Number of windows ``make_windows`` would build, without building them."""
+    L = window["length"]
+    s = window.get("stride") or max(1, L // 2)
+    pad = window.get("pad_remainder", True)
+    lengths = [sum(r.num_frames for r in recs)] if window.get("concat_recordings") else [r.num_frames for r in recs]
+    n = 0
+    for T in lengths:
+        full = 0 if T < L else (T - L) // s + 1
+        n += full + int(pad and full * s < T)
+    return n
 
 
 def make_windows(recs: list[R.Recording], window: dict):
@@ -191,6 +292,8 @@ class Datasets:
     train: WindowDataset
     valid: Optional[WindowDataset]
     test_recordings: Optional[list[R.Recording]]
+    train_recordings: Optional[int] = None  # None when train / valid were split by windows
+    valid_recordings: Optional[int] = None
 
 
 def build_augmentation(aug_cfg: Optional[dict]):
@@ -206,22 +309,62 @@ def build_datasets(cfg: dict, root, seed: int, sequence_labels: bool) -> Dataset
     window = data["window"]
     recs = load_split_recordings(cfg, root, seed)
     augment_fn, augment_classes = build_augmentation(data.get("augmentation"))
+    method = data.get("split", {}).get("method", "random_windows")
+    how = f"{window['length']} frames, stride {window.get('stride') or window['length'] // 2}"
+    if window.get("concat_recordings"):
+        how += ", recordings joined"
+    if sequence_labels:
+        how += "; one value per sequence" if is_regression(cfg) else "; one label per sequence"
 
     train_w, _ = make_windows(recs["train"], window)
+    n_tr_rec = n_va_rec = None
     if recs["valid"] is None:
+        report.step_line(f"Generating sequences ({how})", f"{len(train_w):,} sequences")
         frac = data.get("split", {}).get("valid", 0.2)
         if frac:
             tr_idx, va_idx = train_test_split(np.arange(len(train_w)), test_size=frac, random_state=seed)
             valid_w = subset_windows(train_w, va_idx)
             train_w = subset_windows(train_w, tr_idx)
+            report.step_line(f"Splitting sequences: random {frac * 100:g}% for validation (seed {seed})",
+                             f"train: {len(train_w):,} sequences, valid: {len(valid_w):,} sequences")
         else:
             valid_w = None
     else:
         valid_w, _ = make_windows(recs["valid"], window)
+        if method == "test_as_valid":
+            report.step_line(f"Generating sequences ({how})",
+                             f"train: {len(train_w):,} sequences, test: {len(valid_w):,} sequences")
+            report.step_line("Splitting: the test recordings are used for validation",
+                             f"train: {len(train_w):,} sequences, valid: {len(valid_w):,} sequences")
+        else:
+            n_tr_rec, n_va_rec = len(recs["train"]), len(recs["valid"])
+            n_te = count_windows(recs["test"], window) if recs["test"] else 0
+            report.step_line(f"Generating sequences ({how})",
+                             f"train: {len(train_w):,} sequences, valid: {len(valid_w):,}, test: {n_te:,}")
 
     train = WindowDataset(train_w, augment_fn, augment_classes, sequence_labels)
     valid = None if valid_w is None else WindowDataset(valid_w, sequence_labels=sequence_labels)
-    return Datasets(train, valid, recs["test"])
+    return Datasets(train, valid, recs["test"], n_tr_rec, n_va_rec)
+
+
+def print_distribution(title: str, windows, cfg: dict, sequence_labels: bool, recordings: Optional[int] = None,
+                       pretraining: bool = False) -> None:
+    """``<title> Dataset Distribution`` for a set of windows."""
+    names = cfg.get("model", {}).get("label_names") or []
+    if pretraining or windows.labels is None:
+        report.size_distribution(f"{title} Dataset Distribution", int(windows.mask.sum()), len(windows.inputs))
+    elif is_regression(cfg):
+        report.value_distribution(f"{title} Dataset Distribution", windows.labels[:, 0].numpy(), "sequences",
+                                  recordings)
+    elif sequence_labels:
+        y = windows.labels[:, 0].long()
+        counts = torch.bincount(y[y >= 0], minlength=len(names)).tolist()
+        report.class_distribution(f"{title} Dataset Distribution", counts, names, "sequences", recordings)
+    else:
+        y = windows.labels.reshape(-1)
+        y = y[y >= 0].long()
+        counts = torch.bincount(y, minlength=len(names)).tolist()
+        report.class_distribution(f"{title} Dataset Distribution", counts, names, "frames")
 
 
 # ------------------------------------------------------------------ model / loss
@@ -245,14 +388,7 @@ def build_loss_fn(cfg: dict, train: WindowDataset, num_classes: int):
     # the weighted losses weight classes by the training data's inverse class proportions
     # unless the config gives class_weights; class_weight_multipliers scale either
     props = train.class_proportions(num_classes) if name in WEIGHTED_LOSSES and "class_weights" not in loss_cfg else None
-    loss_fn = build_loss(name, props, **loss_cfg)
-    weights = getattr(loss_fn, "weights", None)
-    shown = {k: v for k, v in loss_cfg.items() if k not in ("class_weights", "class_weight_multipliers")}
-    if weights is not None:
-        print(f"loss: {name}  class weights: {np.round(weights.tolist(), 4).tolist()}  {shown}")
-    else:
-        print(f"loss: {name}  {loss_cfg}")
-    return loss_fn
+    return build_loss(name, props, **loss_cfg)
 
 
 def build_sampler(cfg: dict, train: WindowDataset, batch_size: int, num_classes: int):
@@ -262,7 +398,13 @@ def build_sampler(cfg: dict, train: WindowDataset, batch_size: int, num_classes:
 
 
 # ------------------------------------------------------------------ test evaluation
-def evaluate_test(model: BehaVERT, cfg: dict, test_recs: list[R.Recording], batch_size: int = 256) -> dict:
+def test_windows(cfg: dict, test_recs: list[R.Recording]):
+    """The test windows (and their recording index), built once for every checkpoint."""
+    return make_windows(test_recs, cfg["data"]["window"])
+
+
+def evaluate_test(model: BehaVERT, cfg: dict, test_recs: list[R.Recording], batch_size: int = 256,
+                  windows=None) -> dict:
     """Test metrics using the same windowing as training.
 
     * Token models: frame-level report over all windows (with overlapping
@@ -276,22 +418,19 @@ def evaluate_test(model: BehaVERT, cfg: dict, test_recs: list[R.Recording], batc
     tcfg = cfg.get("train", {})
     ignore = tcfg.get("metric_ignore_classes", [])
     avg = tcfg.get("metric_average_classes")
-    w, owner = make_windows(test_recs, window)
+    w, owner = windows if windows is not None else make_windows(test_recs, window)
     out = {}
     if mc.problem == "regression":
         pred = predict_windows(model, w, batch_size).reshape(-1)
         out["windows"] = regression_report(w.labels[:, 0].numpy(), pred.numpy())
-        print(format_report(out["windows"], "test (windows):"))
         return out
     probs = predict_windows(model, w, batch_size)
     if mc.mode == "token":
         out["frames"] = classification_report(w.labels.numpy(), probs.argmax(-1).numpy(),
                                               mc.num_classes, ignore, mc.label_names, avg)
-        print(format_report(out["frames"], "test (frames):"))
         return out
     out["windows"] = classification_report(w.labels[:, 0].numpy(), probs.argmax(-1).numpy(),
                                            mc.num_classes, ignore, mc.label_names, avg)
-    print(format_report(out["windows"], "test (windows):"))
     y_true, y_pred = [], []
     for i, r in enumerate(test_recs):
         decision, _ = recording_decision(probs[(owner == i).numpy()].numpy())
@@ -299,7 +438,6 @@ def evaluate_test(model: BehaVERT, cfg: dict, test_recs: list[R.Recording], batc
         y_pred.append(decision)
     out["recordings"] = classification_report(np.array(y_true), np.array(y_pred),
                                               mc.num_classes, ignore, mc.label_names, avg)
-    print(format_report(out["recordings"], "test (recordings):"))
     return out
 
 

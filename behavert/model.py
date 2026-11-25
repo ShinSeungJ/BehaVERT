@@ -259,7 +259,10 @@ class BehaVERT(nn.Module):
         self.load_state_dict(take, strict=False)
         fresh = sorted(k for k in own if k not in take)
         if verbose:
-            print(f"loaded {len(take)} tensors from {name_or_path}; newly initialised: {fresh}")
+            print(f"Loading pretrained weights from: {name_or_path}")
+            print(f"  ✅ Loaded {len(take)} parameter groups")
+            if fresh:
+                print(f"  ✗ Skipped {len(fresh)} parameter groups ({', '.join(fresh)} — newly initialised)")
         return fresh
 
     @classmethod

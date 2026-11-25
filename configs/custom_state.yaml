@@ -29,6 +29,7 @@
 #
 # 2. Edit the entries marked "EDIT" below and run the command above.
 output_dir: outputs/custom_state
+label_title: state                   # first column of the validation table
 
 data:
   format: csv                          # EDIT: csv or recordings

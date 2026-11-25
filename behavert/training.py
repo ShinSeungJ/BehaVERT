@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import math
 import random
-import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -16,7 +15,8 @@ from torch.utils.data import DataLoader
 from transformers import get_linear_schedule_with_warmup
 
 from .data.dataset import WindowDataset, collate
-from .metrics import classification_report, format_report, regression_report
+from .metrics import classification_report, regression_report
+from .report import TrainingReport
 
 
 @dataclass
@@ -114,6 +114,14 @@ def resolve_patience(patience: Optional[int], epochs: int) -> int:
     return max(floor, max(1, epochs * 2 // 10) if patience is None else patience)
 
 
+CHECKPOINT_NAMES = {"macro_f1": "best_f1", "f1_class1": "best_f1_class1", "loss": "best_loss"}
+
+
+def checkpoint_name(select_on: str) -> str:
+    """Folder of the checkpoint kept for ``select_on`` (``macro_f1`` -> ``best_f1``)."""
+    return CHECKPOINT_NAMES.get(select_on, f"best_{select_on}")
+
+
 def fit(
     model: torch.nn.Module,
     train_loader: DataLoader,
@@ -123,16 +131,19 @@ def fit(
     evaluate: Optional[Callable[[torch.nn.Module], dict]] = None,
     save: Optional[Callable[[torch.nn.Module, Path], None]] = None,
     select_on: Optional[str] = "macro_f1",
+    report: Optional[TrainingReport] = None,
 ) -> dict:
     """Generic loop: AdamW, linear warm-up/decay, gradient clipping and accumulation.
 
-    Saves ``best_<select_on>/``, ``best_loss/`` and ``last/`` under ``out_dir``
+    Saves ``best_loss/``, the checkpoint for ``select_on`` (``best_f1/`` for macro F1,
+    ``best_f1_class1/`` for the class-1 F1) and ``last/`` under ``out_dir``
     (via ``save(model, dir)``), plus ``history.jsonl``. With validation, training
     stops early once neither the validation loss nor ``select_on`` has improved for
     ``cfg.patience`` epochs.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    report = report or TrainingReport()
     device = next(model.parameters()).device
     save = save or (lambda mdl, d: mdl.save_pretrained(d))
 
@@ -149,10 +160,8 @@ def fit(
     if select_on and select_on != "loss":
         best[select_on] = -math.inf
     patience = resolve_patience(cfg.patience, cfg.epochs)
-    no_gain = (f"neither validation loss nor {select_on} improved" if select_on and select_on != "loss"
-               else "validation loss did not improve")
     epoch, best_epoch = 0, 0  # current epoch; last epoch in which a tracked metric improved
-    step, t0, last_eval = 0, time.time(), -1
+    step, last_eval = 0, -1
     history = open(out_dir / "history.jsonl", "a")
     running: list[float] = []
     done = False
@@ -167,20 +176,18 @@ def fit(
         rec = {"step": step, **{k: v for k, v in rep.items() if k != "per_class"}, "per_class": rep.get("per_class")}
         history.write(json.dumps(rec) + "\n")
         history.flush()
-        msg = f"[eval] step {step}  loss {rep['loss']:.5f}"
-        if select_on and select_on != "loss" and select_on in rep:
-            msg += f"  {select_on} {rep[select_on]:.4f}"
-        print(msg, flush=True)
+        report.valid(epoch, step, rep)
         if rep["loss"] < best["loss"]:
             best["loss"] = rep["loss"]
             best_epoch = epoch
             save(model, out_dir / "best_loss")
+            report.saved("best_loss", out_dir / "best_loss")
         if select_on and select_on != "loss" and select_on in rep and rep[select_on] > best[select_on]:
             best[select_on] = rep[select_on]
             best_epoch = epoch
-            save(model, out_dir / f"best_{select_on}")
-            if "per_class" in rep and rep["per_class"]:
-                print(format_report(rep, f"  new best {select_on}"), flush=True)
+            name = checkpoint_name(select_on)
+            save(model, out_dir / name)
+            report.saved(name, out_dir / name)
 
     def optimizer_step():
         nonlocal step, pending
@@ -207,8 +214,7 @@ def fit(
                 continue
             optimizer_step()
             if step % cfg.log_every == 0:
-                print(f"epoch {epoch}  step {step}/{total}  loss {np.mean(running):.5f}  "
-                      f"lr {sched.get_last_lr()[0]:.2e}  {time.time() - t0:.0f}s", flush=True)
+                report.train(epoch, step, float(np.mean(running)), sched.get_last_lr()[0])
                 running = []
             if step % cfg.eval_every == 0:
                 run_eval()
@@ -218,14 +224,16 @@ def fit(
         if done:
             break
         if evaluate is not None and last_eval >= 0 and patience > 0 and epoch - best_epoch >= patience:
-            print(f"early stop at epoch {epoch}/{cfg.epochs}: {no_gain} for {epoch - best_epoch} epochs "
-                  f"(last improvement in epoch {best_epoch})", flush=True)
             stopped_early = True
             break
     if pending:  # gradients of the last, incomplete accumulation
         optimizer_step()
     run_eval()
+    report.close()
+    if stopped_early:
+        report.early_stop(epoch, cfg.epochs)
     save(model, out_dir / "last")
+    report.saved("last", out_dir / "last")
     history.close()
     summary = {"steps": step, "total_steps": total, "warmup_steps": warmup_steps, "epochs": epoch,
                "stopped_early": stopped_early, "best": best,
