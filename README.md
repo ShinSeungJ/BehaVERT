@@ -182,7 +182,7 @@ The short names work in every command and in `BehaVERT.from_pretrained`. Local
 checkpoint folders and other Hub repos work too. The model cards
 ([behavior](https://huggingface.co/ShinSeungJ/behavert),
 [pose](https://huggingface.co/ShinSeungJ/behavert-pose)) describe the inputs and
-test-set scores of each model.
+settings of each model.
 
 ## Datasets
 
