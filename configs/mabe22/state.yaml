@@ -18,7 +18,6 @@ data:
 
 model:
   mode: sequence
-  positional_encoding: learned
   embedding_dropout: 0.1
 
 train:

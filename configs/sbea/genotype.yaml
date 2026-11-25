@@ -25,7 +25,6 @@ model:
   mode: sequence
   num_classes: 3
   label_names: [KO-KO, KO-WT, WT-WT]
-  positional_encoding: learned
   embedding_dropout: 0.1
 
 loss: {name: f1}                # soft macro-F1 loss

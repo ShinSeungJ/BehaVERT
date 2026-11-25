@@ -49,7 +49,6 @@ model:
   mode: token
   num_classes: 4
   label_names: [none, close, explore, chase]
-  positional_encoding: sinusoidal
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
 sampler: proportional

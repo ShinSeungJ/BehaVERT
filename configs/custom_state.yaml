@@ -61,7 +61,6 @@ model:
   mode: sequence                       # one label per window, from the [CLS] token
   num_classes: 2                       # EDIT
   label_names: [control, treated]      # EDIT: in class-id order
-  positional_encoding: learned         # or "sinusoidal"
   embedding_dropout: 0.1
   # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
 

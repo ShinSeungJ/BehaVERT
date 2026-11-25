@@ -93,7 +93,6 @@ model:
   num_classes: 11
   label_names: [idle, small_movement, head_tilt, groom, sniff, investigate, rear_up, rear_down,
                 crouch_explore, amble, locomotion]
-  positional_encoding: sinusoidal
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
 sampler: proportional

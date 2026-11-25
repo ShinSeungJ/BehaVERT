@@ -57,7 +57,6 @@ model:
   mode: token                          # one label per frame
   num_classes: 3                       # EDIT
   label_names: [rest, walk, groom]     # EDIT: in class-id order
-  positional_encoding: sinusoidal      # or "learned"
   # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
 
 loss:

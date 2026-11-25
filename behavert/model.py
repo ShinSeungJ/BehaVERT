@@ -53,8 +53,7 @@ class BehaVERTConfig:
     num_layers: int = 12
     num_heads: int = 12
     intermediate_size: int = 3072
-    # "sinusoidal" (fixed) or "learned"; added on top of BERT's own position embeddings.
-    positional_encoding: str = "sinusoidal"
+    positional_encoding: str = "none"
     embedding_dropout: float = 0.0
     classifier_dropout: float = 0.1
     # 0: linear classifier. >0: Linear(H, head_hidden) -> ReLU -> Dropout -> Linear (used for regression).
@@ -73,9 +72,9 @@ class BehaVERTConfig:
     def __post_init__(self) -> None:
         if self.mode not in ("token", "sequence"):
             raise ValueError(f"mode must be 'token' or 'sequence', got {self.mode!r}")
-        if self.positional_encoding not in ("sinusoidal", "learned"):
+        if self.positional_encoding not in ("none", "sinusoidal", "learned"):
             raise ValueError(
-                f"positional_encoding must be 'sinusoidal' or 'learned', got {self.positional_encoding!r}"
+                f"positional_encoding must be 'none', 'sinusoidal' or 'learned', got {self.positional_encoding!r}"
             )
         n_tokens = self.max_seq_length + (1 if self.mode == "sequence" else 0)
         if n_tokens > self.max_position_embeddings:
@@ -194,7 +193,7 @@ class BehaVERT(nn.Module):
             if T > self.positional_encodings.shape[1]:
                 raise ValueError(f"sequence length {L} exceeds max_seq_length={self.config.max_seq_length}")
             h = h + self.positional_encodings[:, :T, :]
-        else:
+        elif self.config.positional_encoding == "sinusoidal":
             h = h + sinusoidal_encoding(T, h.shape[-1], device=h.device)
         h = self.dropout(h)
 

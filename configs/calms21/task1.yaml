@@ -20,7 +20,6 @@ model:
   mode: token
   num_classes: 4
   label_names: [attack, investigation, mount, other]
-  positional_encoding: sinusoidal
 
 loss:
   name: hybrid

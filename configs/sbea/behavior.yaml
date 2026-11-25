@@ -1,5 +1,5 @@
 # SBeA behavior — per-frame behavior on the first 900 frames of each recording, with our
-# annotations (Fig. 3h). Token model with a learned positional encoding.
+# annotations (Fig. 3h). Token model.
 #
 #   behavert train configs/sbea/behavior.yaml --task social
 #
@@ -17,7 +17,6 @@ data:
 
 model:
   mode: token
-  positional_encoding: learned
 
 loss: {name: hybrid, gamma: 3.0, alpha: 0.2}
 sampler: proportional

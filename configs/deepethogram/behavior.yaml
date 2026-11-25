@@ -44,7 +44,6 @@ model:
   mode: token
   num_classes: 6
   label_names: [background, locomote, rear, face_groom, body_groom, defecate]
-  positional_encoding: sinusoidal
 
 loss: {name: hybrid, gamma: 5.0, alpha: 0.2}
 sampler: proportional

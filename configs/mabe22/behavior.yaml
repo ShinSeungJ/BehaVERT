@@ -18,7 +18,6 @@ data:
 model:
   mode: token
   num_classes: 2
-  positional_encoding: sinusoidal
 
 loss: {name: hybrid, gamma: 5.0, alpha: 0.1}
 sampler: proportional
