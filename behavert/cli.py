@@ -342,7 +342,9 @@ def cmd_evaluate(args) -> None:
     results = {Path(str(args.checkpoint)).name: evaluate_test(model, cfg, recs["test"], args.batch_size, windows)}
     report.inference_table(results, _table_kind(cfg))
     if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(json.dumps(results, indent=2) + "\n")
+        report.saved("Metrics", args.output)
 
 
 # ------------------------------------------------------------------ attention
