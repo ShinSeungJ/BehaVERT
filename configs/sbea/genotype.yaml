@@ -1,8 +1,8 @@
 # SBeA genotype — KO-KO / KO-WT / WT-WT pair from 128-frame windows, [CLS] sequence model
-# (Tables 5 and 6). Table 5 = window-level F1, Table 6 = recording-level F1 (each recording
-# labelled from its averaged window probabilities).
+# Scored per window and per recording (each recording labelled from its averaged window
+# probabilities).
 #
-# Other window lengths in the paper:
+# Other window lengths:
 #   1024 frames: window {length: 1024, stride: 512},
 #     model.max_position_embeddings 1025, epochs 50, learning_rate 1e-5,
 #     weight_decay 1e-3

@@ -460,7 +460,7 @@ def evaluate_test(model: BehaVERT, cfg: dict, test_recs: list[R.Recording], batc
     """Test metrics using the same windowing as training.
 
     * Token models: frame-level report over all windows (with overlapping
-      windows a frame counts once per window, as in the paper).
+      windows a frame counts once per window).
     * Sequence classifiers: window-level report, plus a recording-level report
       where each recording is labelled from its averaged window probabilities.
     * Regression: window-level MSE.

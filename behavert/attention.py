@@ -1,4 +1,4 @@
-"""Dataset-level attention analysis (paper Fig. 8), written as CSV tables.
+"""Dataset-level attention analysis, written as CSV tables.
 
 For every window of the chosen recordings, the attention each frame gets from
 the last layer (heads averaged; ``[CLS]`` -> frame for sequence models, the

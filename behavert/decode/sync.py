@@ -1,4 +1,4 @@
-"""Synchronized visualization video (paper Fig. 1c).
+"""Synchronized visualization video.
 
 Layout::
 

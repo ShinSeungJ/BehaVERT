@@ -1,9 +1,9 @@
-# PAIR-R24M single-animal behavior — 11 classes per frame, token model (Table 7, "+Unfold" row).
+# PAIR-R24M single-animal behavior — 11 classes per frame, token model.
 # Every animal is its own recording: the single-animal files plus both animals of each
 # two-animal file (66 tracks).
-# Other Table 7 rows: Base = window stride 64; +Aug = stride 64 and augmentation.enabled true;
-# +Unfold +Aug = augmentation.enabled true. Augmentation lowers the scores on this dataset
-# (behaviors are tied to arena locations), so the best row has it off.
+# Augmentation is off because the behaviors are tied to arena locations. Variants: without
+# overlapping windows, set data.window.stride to 64; with augmentation, set
+# data.augmentation.enabled to true.
 output_dir: outputs/pair24m/single
 
 data:

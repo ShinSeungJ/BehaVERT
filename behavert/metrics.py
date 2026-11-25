@@ -63,8 +63,8 @@ def regression_report(y_true, y_pred) -> dict:
 def recording_decision(window_probs: np.ndarray) -> tuple[int, np.ndarray]:
     """Combine window probabilities ``[N, C]`` into one recording-level label.
 
-    The mean probability over windows decides. For two classes this is the
-    paper's rule: class 1 if the mean of ``p1 - p0`` is ``>= 0``.
+    The mean probability over windows decides; with two classes, class 1 when
+    the mean of ``p1 - p0`` is ``>= 0``.
     Returns the decision and the mean probabilities.
     """
     mean = np.asarray(window_probs, dtype=np.float64).mean(0)

@@ -175,8 +175,7 @@ PRESETS = {
         },
         description=(
             "BehaVERT token model for CalMS21 Task 1 (attack / investigation / mount / other), "
-            "masked-keypoint-modeling pretraining then supervised fine-tuning; "
-            "'BehaVERT (self-supervision)' row of Table 1."
+            "masked-keypoint-modeling pretraining then supervised fine-tuning."
         ),
     ),
     "mabe22-strain": dict(
@@ -206,8 +205,7 @@ PRESETS = {
             "video_level_prediction": "average of (p1 - p0) over windows, TG if >= 0",
         },
         description=(
-            "BehaVERT [CLS] sequence model for MABe22 binary strain classification "
-            "(Table 4, Strain column); the model analysed in Fig. 8."
+            "BehaVERT [CLS] sequence model for MABe22 binary strain classification."
         ),
     ),
     "oft-behavior": dict(

@@ -1,4 +1,4 @@
-"""Context-aware data augmentation (paper Section 3.3, Fig. 2b, Table 17).
+"""Context-aware data augmentation (paper Section 3.3).
 
 Each call picks 1-2 operations at random from {mirror, rotate, rotate_90,
 shift, jitter} and applies them to one window. Every operation respects the
@@ -57,7 +57,7 @@ class ArenaConfig:
             raise ValueError(f"unknown augmentation operations: {sorted(unknown)}")
 
 
-# Values from paper Table 17 (and the original per-dataset augmentation code).
+# Arena of each benchmark.
 AUGMENTATION_PRESETS: dict[str, ArenaConfig] = {
     # 1024 x 570 px, 2 mice x 7 keypoints. No 90-degree rotation (non-square arena).
     "calms21": ArenaConfig(

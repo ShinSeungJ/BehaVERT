@@ -1,5 +1,5 @@
 # SBeA behavior — per-frame behavior on the first 900 frames of each recording, with our
-# annotations (Fig. 3h). Token model.
+# annotations. Token model.
 #
 #   behavert train configs/sbea/behavior.yaml --task social
 #

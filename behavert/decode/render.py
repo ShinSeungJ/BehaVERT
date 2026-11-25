@@ -165,9 +165,9 @@ def render_sync(out_path: Path, model, frames: np.ndarray, layout: KeypointLayou
                 video: Optional[str | Path] = None, fps: Optional[float] = None, start: int = 0,
                 num_frames: Optional[int] = 900, ground_truth: Optional[np.ndarray] = None, name: str = "",
                 reference=None, extra_strip: Optional[dict] = None, window_seconds: float = 3.0, batch_size: int = 64) -> Path:
-    """The synchronized panel video (paper Fig. 1c) for frames ``[start, start + num_frames)``.
+    """The synchronized panel video for frames ``[start, start + num_frames)``.
 
-    The clip is analysed on its own (as the paper's videos were made), and
+    The clip is analysed on its own, and
     titles, strip labels, colors and the embedding map follow the model's
     ``display`` settings.
 

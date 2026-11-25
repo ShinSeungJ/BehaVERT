@@ -391,8 +391,7 @@ def stratified_split(
     (``by="positive_ratio"``) or by their label value (``by="value"``, for
     regression), cut into ``num_bins`` bins, and each bin is shuffled and
     split ``train : valid : rest``. Shuffling uses NumPy's global RNG seeded
-    with ``seed``; with the videos in sorted-name order this gives the paper's
-    MABe22 splits.
+    with ``seed``.
     """
     stats = []
     for i, r in enumerate(recordings):

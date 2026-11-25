@@ -1,4 +1,4 @@
-# CalMS21 Task 3 — one binary per-frame model per behavior, token model (Table 3).
+# CalMS21 Task 3 — one binary per-frame model per behavior, token model.
 #
 #   behavert train configs/calms21/task3.yaml --task groom
 output_dir: outputs/calms21/task3/{task}

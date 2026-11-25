@@ -1,7 +1,7 @@
-# DeepEthogram — 6 behaviors per frame, token model (Table 9, "+Unfold +Aug" row).
+# DeepEthogram — 6 behaviors per frame, token model.
 # Keypoints are our YOLOv12 predictions; labels are the original DeepEthogram ones.
-# Other Table 9 rows: Base = window stride 128 and augmentation.enabled false;
-# +Unfold = augmentation.enabled false; +Aug = stride 128.
+# Variants: without overlapping windows, set data.window.stride to 128; without
+# augmentation, set data.augmentation.enabled to false.
 output_dir: outputs/deepethogram/behavior
 
 data:

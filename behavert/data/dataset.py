@@ -22,7 +22,7 @@ def windows_from_recordings(
     """Window every recording separately (default) and stack the results.
 
     ``concat=True`` joins all recordings into one stream first, so windows can
-    span two recordings; the paper's CalMS21 experiments did this.
+    span two recordings.
 
     Returns the windows and, per window, the index of its recording
     (``-1`` everywhere when ``concat=True``).

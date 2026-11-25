@@ -1,7 +1,6 @@
-# PAIR-R24M social interaction — None / Close / Explore / Chase per frame, token model
-# (Table 8, "+Unfold +Aug" row). Both animals together, 72 values per frame.
-# Other Table 8 rows: Base = window stride 64 and augmentation.enabled false;
-# +Unfold = augmentation.enabled false; +Aug = stride 64.
+# PAIR-R24M social interaction — None / Close / Explore / Chase per frame, token model.
+# Both animals together, 72 values per frame. Variants: without overlapping windows, set
+# data.window.stride to 64; without augmentation, set data.augmentation.enabled to false.
 output_dir: outputs/pair24m/multi
 
 data:
@@ -62,5 +61,5 @@ train:
   warmup: 10%
   eval_every: 5
   log_every: 20
-  metric_average_classes: [1, 2, 3]   # Table 8 averages Close, Explore, Chase (not None)
+  metric_average_classes: [1, 2, 3]   # the average leaves out none
   seed: 42

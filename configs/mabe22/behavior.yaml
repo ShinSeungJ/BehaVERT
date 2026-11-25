@@ -1,9 +1,6 @@
-# MABe22 behavior — one binary per-frame model per behavior, token model (Table 4).
+# MABe22 behavior — one binary per-frame model per behavior, token model.
 #
 #   behavert train configs/mabe22/behavior.yaml --task chase
-#
-# Table 4 groups: Movement = mean class-1 F1 of approach and chase; Contact = mean of close,
-# contact, huddles, oral_ear_contact, oral_genital_contact, oral_oral_contact; Watching = watching.
 output_dir: outputs/mabe22/behavior/{task}
 
 data:

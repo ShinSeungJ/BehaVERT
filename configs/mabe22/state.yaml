@@ -1,4 +1,4 @@
-# MABe22 state prediction — one value per video, [CLS] sequence model (Table 4).
+# MABe22 state prediction — one value per video, [CLS] sequence model.
 #
 #   behavert train configs/mabe22/state.yaml --task strain
 #

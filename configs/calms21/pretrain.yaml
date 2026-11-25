@@ -1,5 +1,5 @@
 # CalMS21 — self-supervised pretraining by masked keypoint modeling (MKM).
-# Encoder used for the "BehaVERT (self-supervision)" row of Table 1.
+# Its encoder is the starting point of configs/calms21/task1_pretrained.yaml.
 #
 #   behavert pretrain configs/calms21/pretrain.yaml                        # all CalMS21 sessions
 #   behavert pretrain configs/calms21/pretrain.yaml --use-all-data false   # Task 1 training sessions only
