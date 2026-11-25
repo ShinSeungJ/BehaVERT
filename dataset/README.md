@@ -21,11 +21,11 @@ and how they were derived from the original release.
 
 | Folder | Benchmark | Animals | Keypoints | Tasks | Size |
 |---|---|---|---|---|---|
-| `calms21/` | CalMS21 | 2 mice, 2D | 7 per mouse | Task 1, Task 3, self-supervised pretraining | 4.8 GB |
-| `mabe22/` | MABe22 mouse triplets | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6 GB |
-| `pair24m/` | PAIR-R24M | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1 GB |
-| `deepethogram/` | DeepEthogram | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4 GB |
-| `sbea/` | SBeA Shank3B | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3 GB |
+| `calms21/` | CalMS21 | 2 mice, 2D | 7 per mouse | Task 1, Task 3, self-supervised pretraining | 4.8&nbsp;GB |
+| `mabe22/` | MABe22 mouse triplets | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6&nbsp;GB |
+| `pair24m/` | PAIR-R24M | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1&nbsp;GB |
+| `deepethogram/` | DeepEthogram | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4&nbsp;GB |
+| `sbea/` | SBeA Shank3B | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3&nbsp;GB |
 
 The configs in [`../configs`](../configs) refer to these folders, e.g.
 `configs/mabe22/state.yaml` reads `mabe22/mabe22_kpts.pt` and
