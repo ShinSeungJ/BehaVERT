@@ -1,0 +1,79 @@
+# Train BehaVERT on your own keypoints, with one behavior label per frame.
+# (For one label per recording, such as a genotype or treatment, use custom_state.yaml.)
+#
+#   behavert train configs/custom_token.yaml --data-root /path/to/your/data
+#
+# 1. Your recordings, in either form:
+#
+#    a) CSV files (format: csv) — a folder with one CSV per recording (named after the file):
+#
+#         nose_x,nose_y,left_ear_x,left_ear_y,...,label
+#         0.512,0.344,0.498,0.330,...,walk
+#
+#       Every column except `label` is a keypoint coordinate, in the order the model reads
+#       them (per animal, per keypoint, x then y [then z]). Labels are class numbers or names
+#       from model.label_names. Columns named frame / time / time_s / timestamp are ignored.
+#       One CSV may also hold several recordings: set `recording_column` to the column that
+#       names them.
+#
+#    b) One file (format: recordings, .pt / .pkl / .npz) keyed by recording name:
+#
+#         {"video_01": {"keypoints": array [T, animals, keypoints, coords],   # or [T, F]
+#                       "labels":    array [T] of int},                       # one per frame
+#          "video_02": {...}, ...}
+#
+#       With .npz, use keys "<name>/keypoints" and "<name>/labels".
+#
+# 2. Edit the entries marked "EDIT" below and run the command above.
+output_dir: outputs/custom_token
+
+data:
+  format: csv                          # EDIT: csv or recordings
+  train: my_recordings/                # EDIT: folder of CSVs (or one .csv / .pt / .pkl / .npz file)
+  # test: my_test_recordings/          # optional: a separate test set
+  label_column: label                  # csv only: the column with the labels
+  # recording_column: video            # csv only: when one CSV holds several recordings
+  split:
+    method: random_recordings          # whole recordings go to train / valid / test
+    train: 0.6
+    valid: 0.2                         # the rest is the test set (ignored if `test` is given)
+  window:
+    length: 64                         # frames per window (at most 512)
+    stride: 32                         # 50% overlap; use `length` for non-overlapping windows
+    pad_remainder: true                # keep the last, shorter piece of each recording
+  augmentation:                        # remove this block to train without augmentation
+    classes: null                      # augment every window; or a list of class ids
+    arena:                             # EDIT: describe your arena, or use a preset name:
+                                       #   calms21, mabe22, deepethogram, pair24m, sbea
+      coords_per_kpt: 2                # 2 for (x, y), 3 for (x, y, z)
+      width: 640                       # 2D: arena spans [0, width] x [0, height]
+      height: 480                      #     in the same units as your keypoints
+      jitter_scale: 1.0                # max random offset per axis
+      # 3D arenas are circular and centred on the origin instead:
+      # radius: 400.0, z_min: -60.0, z_max: 380.0, max_shift: 50.0
+      # operations: [mirror, shift, rotate, jitter, rotate_90]   # default: all of them
+
+model:
+  mode: token                          # one label per frame
+  num_classes: 3                       # EDIT
+  label_names: [rest, walk, groom]     # EDIT: in class-id order
+  positional_encoding: sinusoidal      # or "learned"
+  # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
+
+loss: {name: hybrid, gamma: 2.0, alpha: 0.2}   # or ce, weighted_ce, focal, f1
+sampler: proportional                  # class-balanced batches; "none" for plain shuffling
+
+train:
+  epochs: 50
+  batch_size: 64
+  eval_batch_size: 256
+  grad_accum: 1
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  warmup: 10%                          # warm-up: a number of steps (e.g. 200) or a share of all steps
+  eval_every: 50                       # optimizer steps between validations
+  log_every: 20
+  select_on: macro_f1                  # keep the checkpoint with the best validation macro F1
+  # metric_ignore_classes: [0]         # leave a class (e.g. "background") out of the metrics
+  amp: bf16                            # mixed precision on recent GPUs; remove for full fp32
+  seed: 42

@@ -250,7 +250,12 @@ behavert evaluate configs/calms21/task1.yaml outputs/calms21/task1/best_macro_f1
 
 ## Training on your own data
 
-[`configs/custom.yaml`](configs/custom.yaml) is a template for your own keypoints.
+Two templates cover your own keypoints:
+
+- [`configs/custom_token.yaml`](configs/custom_token.yaml): one behavior label per frame.
+- [`configs/custom_state.yaml`](configs/custom_state.yaml): one label per recording, such
+  as a genotype or a treatment. Each test recording is classified from its windows.
+
 The simplest input is a folder with one CSV per recording: one row per frame,
 keypoint coordinates as columns and a `label` column with class names or numbers.
 
@@ -260,17 +265,17 @@ nose_x,nose_y,left_ear_x,left_ear_y,...,label
 0.515,0.341,0.501,0.329,...,walk
 ```
 
-Rows with an empty label are not scored. For one label per recording (a genotype,
-a treatment), repeat it on every row and use a sequence model (`model.mode: sequence`).
-Set the class names, window length and number of epochs in the template, then:
+Rows with an empty label are not scored. For one label per recording, repeat it on
+every row and use `custom_state.yaml`. Set the class names, window length and number
+of epochs in the template, then:
 
 ```bash
-behavert train configs/custom.yaml --data-root /path/to/your/data
-behavert decode --keypoints new_session.csv --model outputs/custom/best_macro_f1 --video new_session.mp4 --sync
+behavert train configs/custom_token.yaml --data-root /path/to/your/data
+behavert decode --keypoints new_session.csv --model outputs/custom_token/best_macro_f1 --video new_session.mp4 --sync
 ```
 
 Keypoints can also be given as one `.pt`, `.pkl` or `.npz` file holding every
-recording. The template explains both formats, data splits and augmentation.
+recording. The templates explain both formats, data splits and augmentation.
 
 ## Attention and embedding analysis
 
@@ -349,7 +354,7 @@ BehaVERT/
 │   ├── clustering.py        embedding maps and clustering metrics
 │   ├── decode/              video / keypoints -> behavior -> rendered videos
 │   └── cli.py               the `behavert` command
-├── configs/               one YAML per experiment, plus custom.yaml
+├── configs/               one YAML per experiment, plus custom_token.yaml and custom_state.yaml
 ├── dataset/               benchmark data (`behavert download`) and sample videos
 ├── demo/                  demo videos (video/) and keypoints with labels (csv/)
 ├── notebooks/             quick-start notebook

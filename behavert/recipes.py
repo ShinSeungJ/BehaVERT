@@ -1,6 +1,7 @@
 """Build data, model, loss and sampler from a YAML experiment config.
 
-See ``configs/`` for the paper experiments and ``configs/custom.yaml`` for
+See ``configs/`` for the paper experiments, and ``configs/custom_token.yaml``
+(per-frame labels) or ``configs/custom_state.yaml`` (one label per recording) for
 your own data. A config may start with ``base: <other.yaml>`` (relative to
 itself) and may offer several variants under ``tasks:``, chosen with
 ``--task``. Data paths are resolved against ``data_root`` unless absolute.

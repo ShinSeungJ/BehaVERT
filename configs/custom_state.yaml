@@ -1,31 +1,34 @@
-# Train BehaVERT on your own keypoints.
+# Train BehaVERT on your own keypoints, with one label per recording (a state such as a
+# genotype, a treatment or a time point). The model labels each window, and each test
+# recording is classified from its averaged window probabilities.
+# (For one behavior label per frame, use custom_token.yaml.)
 #
-#   behavert train configs/custom.yaml --data-root /path/to/your/data
+#   behavert train configs/custom_state.yaml --data-root /path/to/your/data
 #
 # 1. Your recordings, in either form:
 #
 #    a) CSV files (format: csv) — a folder with one CSV per recording (named after the file):
 #
 #         nose_x,nose_y,left_ear_x,left_ear_y,...,label
-#         0.512,0.344,0.498,0.330,...,walk
+#         0.512,0.344,0.498,0.330,...,treated
+#         0.515,0.341,0.501,0.329,...,treated
 #
 #       Every column except `label` is a keypoint coordinate, in the order the model reads
-#       them (per animal, per keypoint, x then y [then z]). Labels are class numbers or names
-#       from model.label_names. Columns named frame / time / time_s / timestamp are ignored.
-#       One CSV may also hold several recordings: set `recording_column` to the column that
-#       names them. For one label per recording (e.g. a genotype), repeat it on every row and
-#       set model.mode to "sequence".
+#       them (per animal, per keypoint, x then y [then z]). The label is the recording's
+#       state, repeated on every row: a class number or a name from model.label_names.
+#       Columns named frame / time / time_s / timestamp are ignored. One CSV may also hold
+#       several recordings: set `recording_column` to the column that names them.
 #
 #    b) One file (format: recordings, .pt / .pkl / .npz) keyed by recording name:
 #
-#         {"video_01": {"keypoints": array [T, animals, keypoints, coords],   # or [T, F]
-#                       "labels":    array [T] of int},                       # or one int per recording
-#          "video_02": {...}, ...}
+#         {"mouse_01": {"keypoints": array [T, animals, keypoints, coords],   # or [T, F]
+#                       "labels":    1},                                      # one int per recording
+#          "mouse_02": {...}, ...}
 #
 #       With .npz, use keys "<name>/keypoints" and "<name>/labels".
 #
 # 2. Edit the entries marked "EDIT" below and run the command above.
-output_dir: outputs/custom
+output_dir: outputs/custom_state
 
 data:
   format: csv                          # EDIT: csv or recordings
@@ -34,12 +37,12 @@ data:
   label_column: label                  # csv only: the column with the labels
   # recording_column: video            # csv only: when one CSV holds several recordings
   split:
-    method: random_recordings          # whole recordings go to train / valid / test
+    method: per_class                  # whole recordings, split within each class
     train: 0.6
     valid: 0.2                         # the rest is the test set (ignored if `test` is given)
   window:
-    length: 64                         # frames per window (at most 512; 511 with mode: sequence)
-    stride: 32                         # 50% overlap; use `length` for non-overlapping windows
+    length: 128                        # frames per window (at most 511)
+    stride: 64                         # 50% overlap; use `length` for non-overlapping windows
     pad_remainder: true                # keep the last, shorter piece of each recording
   augmentation:                        # remove this block to train without augmentation
     classes: null                      # augment every window; or a list of class ids
@@ -54,13 +57,14 @@ data:
       # operations: [mirror, shift, rotate, jitter, rotate_90]   # default: all of them
 
 model:
-  mode: token                          # "token": one label per frame; "sequence": one per window
-  num_classes: 3                       # EDIT
-  label_names: [rest, walk, groom]     # EDIT: in class-id order
-  positional_encoding: sinusoidal      # "learned" is the usual choice for mode: sequence
+  mode: sequence                       # one label per window, from the [CLS] token
+  num_classes: 2                       # EDIT
+  label_names: [control, treated]      # EDIT: in class-id order
+  positional_encoding: learned         # or "sinusoidal"
+  embedding_dropout: 0.1
   # init_from: outputs/my_pretrain/best_loss   # start from a pretrained encoder (behavert pretrain)
 
-loss: {name: hybrid, gamma: 2.0, alpha: 0.2}   # or ce, weighted_ce, focal, f1
+loss: {name: f1}                       # or ce, weighted_ce, focal, hybrid
 sampler: proportional                  # class-balanced batches; "none" for plain shuffling
 
 train:
@@ -74,6 +78,5 @@ train:
   eval_every: 50                       # optimizer steps between validations
   log_every: 20
   select_on: macro_f1                  # keep the checkpoint with the best validation macro F1
-  # metric_ignore_classes: [0]         # leave a class (e.g. "background") out of the metrics
   amp: bf16                            # mixed precision on recent GPUs; remove for full fp32
   seed: 42
