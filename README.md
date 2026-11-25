@@ -197,11 +197,11 @@ behavert download calms21 mabe22     # or only the ones you need
 
 | Benchmark | Animals | Keypoints | Tasks | Size |
 |---|---|---|---|---|
-| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2&nbsp;mice,&nbsp;2D | 7/mouse | Task 1, Task 3, pretraining | 4.8&nbsp;GB |
-| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3&nbsp;mice,&nbsp;2D | 12/mouse | strain, lights, exp.day, time of day, 9 behaviors | 3.6&nbsp;GB |
-| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2&nbsp;rats,&nbsp;3D | 12/rat | single-animal and social behavior | 2.1&nbsp;GB |
-| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1&nbsp;mouse,&nbsp;2D | 11/mouse | 6 behaviors | 1.4&nbsp;GB |
-| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2&nbsp;mice,&nbsp;3D | 16/mouse | genotype pair, behavior | 0.3&nbsp;GB |
+| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2&nbsp;mice,&nbsp;2D | 7 per mouse | Task 1, Task 3, pretraining | 4.8&nbsp;GB |
+| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3&nbsp;mice,&nbsp;2D | 12 per mouse | strain, lights, exp.day, time, 9 behaviors | 3.6&nbsp;GB |
+| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2&nbsp;rats,&nbsp;3D | 12 per rat | single-animal and social behavior | 2.1&nbsp;GB |
+| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1&nbsp;mouse,&nbsp;2D | 11 per mouse | 6 behaviors | 1.4&nbsp;GB |
+| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2&nbsp;mice,&nbsp;3D | 16 per mouse | genotype pair, behavior | 0.3&nbsp;GB |
 
 Every benchmark folder already contains a short `sample.mp4` from that dataset,
 so you can see what the recordings look like before downloading. The download
