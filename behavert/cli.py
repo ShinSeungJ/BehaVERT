@@ -1,6 +1,6 @@
 """The ``behavert`` command.
 
-    behavert decode   --video demo/video/oft.mp4 --model oft-behavior --overlay
+    behavert decode   --video demo_data/video/oft.mp4 --model oft-behavior --overlay
     behavert decode   --config configs/calms21/task1.yaml --recording mouse071_task1_annotator1 \\
                       --model calms21-task1 --video mouse071.mp4 --sync
     behavert train    configs/mabe22/behavior.yaml --task chase
