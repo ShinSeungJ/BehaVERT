@@ -172,11 +172,11 @@ embeddings and attention maps.
 
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Model&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Task | Input | Output | License |
 |---|---|---|---|---|
-| [`calms21-task1`](https://huggingface.co/ShinSeungJ/behavert/tree/main/calms21-task1) | CalMS21 Task 1, resident–intruder | 2 mice × 7 keypoints | attack / investigation / mount / other, per frame | MIT |
-| [`mabe22-strain`](https://huggingface.co/ShinSeungJ/behavert/tree/main/mabe22-strain) | MABe22 mouse triplets | 3 mice × 12 keypoints | strain, WT or TG, per window and per video | MIT |
-| [`oft-behavior`](https://huggingface.co/ShinSeungJ/behavert/tree/main/oft-behavior) | open field, top view | 1 mouse × 11 keypoints | 7 behaviors, per frame | MIT |
-| [`oft-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/oft-pose) | pose estimation for `oft-behavior` | video | 12 keypoints, 1 mouse | AGPL&#8209;3.0 |
-| [`sbea-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/sbea-pose) | pose estimation for SBeA recordings | video | 12 keypoints, 2 mice | AGPL&#8209;3.0 |
+| [`calms21-task1`](https://huggingface.co/ShinSeungJ/behavert/tree/main/calms21-task1) | CalMS21 Task 1 | 2 mice × 7 kpts | 4 behaviors, per frame | MIT |
+| [`mabe22-strain`](https://huggingface.co/ShinSeungJ/behavert/tree/main/mabe22-strain) | MABe22 | 3 mice × 12 kpts | strain (WT / TG), per video | MIT |
+| [`oft-behavior`](https://huggingface.co/ShinSeungJ/behavert/tree/main/oft-behavior) | open field | 1 mouse × 11 kpts | 7 behaviors, per frame | MIT |
+| [`oft-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/oft-pose) | open field pose | video | 1 mouse × 12 kpts | AGPL&#8209;3.0 |
+| [`sbea-pose`](https://huggingface.co/ShinSeungJ/behavert-pose/tree/main/sbea-pose) | SBeA pose | video | 2 mice × 12 kpts | AGPL&#8209;3.0 |
 
 The short names work in every command and in `BehaVERT.from_pretrained`. Local
 checkpoint folders and other Hub repos work too. The model cards
@@ -197,11 +197,11 @@ behavert download calms21 mabe22     # or only the ones you need
 
 | Benchmark | Animals | Keypoints | Tasks | Size |
 |---|---|---|---|---|
-| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2 mice, 2D | 7 per mouse | Task 1 behaviors, Task 3 new behaviors, pretraining | 4.8&nbsp;GB |
-| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3 mice, 2D | 12 per mouse | strain, lights, experiment day, time of day, 9 behaviors | 3.6&nbsp;GB |
-| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2 rats, 3D | 12 per rat | single-animal behavior, social interaction | 2.1&nbsp;GB |
-| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1 mouse, 2D | 11 (our YOLOv12 predictions) | 6 behaviors | 1.4&nbsp;GB |
-| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2 mice, 3D | 16 per mouse | genotype pair, behavior (our annotations) | 0.3&nbsp;GB |
+| [CalMS21](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/calms21/README.md) | 2&nbsp;mice,&nbsp;2D | 7/mouse | Task 1, Task 3, pretraining | 4.8&nbsp;GB |
+| [MABe22](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/mabe22/README.md) | 3&nbsp;mice,&nbsp;2D | 12/mouse | strain, lights, exp.day, time of day, 9 behaviors | 3.6&nbsp;GB |
+| [PAIR-R24M](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/pair24m/README.md) | 1–2&nbsp;rats,&nbsp;3D | 12/rat | single-animal and social behavior | 2.1&nbsp;GB |
+| [DeepEthogram](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/deepethogram/README.md) | 1&nbsp;mouse,&nbsp;2D | 11/mouse | 6 behaviors | 1.4&nbsp;GB |
+| [SBeA](https://huggingface.co/datasets/ShinSeungJ/behavert-data/blob/main/sbea/README.md) | 2&nbsp;mice,&nbsp;3D | 16/mouse | genotype pair, behavior | 0.3&nbsp;GB |
 
 Every benchmark folder already contains a short `sample.mp4` from that dataset,
 so you can see what the recordings look like before downloading. The download
@@ -236,7 +236,7 @@ A run writes to its config's `output_dir` (e.g. `outputs/calms21/task1/`):
 
 | Path | Contents |
 |---|---|
-| `best_f1/` (or `best_f1_class1/`), `best_loss/`, `last/` | checkpoints (`config.json` + `model.safetensors`), loadable with `from_pretrained` |
+| `best_*/`, `last/` | checkpoints (`config.json` + `model.safetensors`) for `from_pretrained` |
 | `history.jsonl` | training and validation metrics per evaluation |
 | `test_results.json` | test-set scores of each checkpoint |
 | `config.yaml` | the exact configuration of the run |
@@ -310,12 +310,12 @@ behavert attention configs/mabe22/state.yaml mabe22-strain --task strain --split
 
 | Output | Contents |
 |---|---|
-| `attention_frames.csv` | attention on every frame of every window, with behavior labels when available |
-| `attention_windows.csv` | per window: prediction, confidence, correctness, mean and peakedness of attention |
-| `attention_tests.csv` | statistical comparisons between confidence, correctness and attention peakedness |
+| `attention_frames.csv` | attention on every frame of every window, with behavior labels |
+| `attention_windows.csv` | per window: prediction, confidence, correctness and attention |
+| `attention_tests.csv` | tests between confidence, correctness and attention peakedness |
 | `behavior_attention.csv` | attention on frames with and without each behavior |
 | `behavior_peaks.csv` | how often each behavior occurs at attention peaks vs elsewhere |
-| `behavior_success_failure.csv` | attention on each behavior in confident correct vs confident wrong windows |
+| `behavior_success_failure.csv` | attention on each behavior in confident right vs wrong windows |
 
 Both commands default to the test split. They take `--split` and
 `--recordings N` to choose the data, and `--out` for the output folder.
