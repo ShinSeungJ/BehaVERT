@@ -81,8 +81,8 @@ train:
   learning_rate: 5.0e-5
   weight_decay: 0.01
   warmup: 10%                          # warm-up: a number of steps (e.g. 200) or a share of all steps
-  eval_every: 50                       # optimizer steps between validations
-  log_every: 20
+  eval_every: 50                       # validate every N optimizer steps, or epoch
+  log_every: 20                        # print the training loss every N steps, or epoch
   select_on: macro_f1                  # keep the checkpoint with the best validation macro F1
   amp: bf16                            # mixed precision on recent GPUs; remove for full fp32
   seed: 42

@@ -29,8 +29,8 @@ class TrainConfig:
     weight_decay: float = 0.01
     warmup: Optional[int | str] = None  # steps (e.g. 4000) or a share of all steps (e.g. "10%"); default 10%
     max_grad_norm: float = 1.0
-    eval_every: int = 100  # optimizer steps between validations
-    log_every: int = 20
+    eval_every: int | str = 100  # validate every N optimizer steps, or "epoch" (at the end of each epoch)
+    log_every: int | str = 20    # print the training loss every N steps, or "epoch" (mean over the epoch)
     seed: int = 42
     max_steps: Optional[int] = None  # stop early (debugging / smoke tests)
     # early stopping: stop once neither the validation loss nor the selection metric has
@@ -49,6 +49,14 @@ class TrainConfig:
         if unknown:
             raise ValueError(f"unknown train options: {sorted(unknown)}")
         return cls(**d)
+
+    def __post_init__(self) -> None:
+        for name in ("eval_every", "log_every"):
+            value = getattr(self, name)
+            if isinstance(value, str) and value.strip().lower() == "epoch":
+                setattr(self, name, "epoch")
+            elif isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"train.{name} must be a positive number of steps or 'epoch', got {value!r}")
 
 
 def set_seed(seed: int) -> None:
@@ -213,14 +221,19 @@ def fit(
             if pending < cfg.grad_accum:
                 continue
             optimizer_step()
-            if step % cfg.log_every == 0:
+            if cfg.log_every != "epoch" and step % cfg.log_every == 0:
                 report.train(epoch, step, float(np.mean(running)), sched.get_last_lr()[0])
                 running = []
-            if step % cfg.eval_every == 0:
+            if cfg.eval_every != "epoch" and step % cfg.eval_every == 0:
                 run_eval()
             if cfg.max_steps and step >= cfg.max_steps:
                 done = True
                 break
+        if cfg.log_every == "epoch" and running:
+            report.train(epoch, step, float(np.mean(running)), sched.get_last_lr()[0])
+            running = []
+        if cfg.eval_every == "epoch":
+            run_eval()
         if done:
             break
         if evaluate is not None and last_eval >= 0 and patience > 0 and epoch - best_epoch >= patience:
