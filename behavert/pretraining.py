@@ -44,6 +44,17 @@ class MaskedKeypointModel(nn.Module):
         state = {k: v.detach().contiguous().cpu() for k, v in self.decoder.state_dict().items()}
         save_file(state, str(Path(directory) / DECODER_NAME))
 
+    @classmethod
+    def from_pretrained(cls, directory: str | Path, device=None) -> "MaskedKeypointModel":
+        """Encoder and decoder written by :meth:`save_pretrained`."""
+        from safetensors.torch import load_file
+
+        encoder = BehaVERT.from_pretrained(directory, device="cpu")
+        model = cls(encoder.config)
+        model.encoder = encoder
+        model.decoder.load_state_dict(load_file(str(Path(directory) / DECODER_NAME)))
+        return model.to(device or "cpu").eval()
+
 
 def mask_coordinates(x: torch.Tensor, ratio: float, frame_mask: Optional[torch.Tensor] = None):
     """Zero a random ``ratio`` of the coordinates of every window.

@@ -1,8 +1,21 @@
 # CalMS21 — self-supervised pretraining by masked keypoint modeling (MKM).
 # Encoder used for the "BehaVERT (self-supervision)" row of Table 1.
 #
-#   behavert pretrain configs/calms21/pretrain.yaml
+#   behavert pretrain configs/calms21/pretrain.yaml                        # all CalMS21 sessions
+#   behavert pretrain configs/calms21/pretrain.yaml --use-all-data false   # Task 1 training sessions only
+#
+# With use_all_data false, the encoder is pretrained on the Task 1 training sessions
+# (labels unused) and then scored on the Task 1 test sessions: reconstruction error of
+# the masked coordinates (MSE, RMSE, MAE in pixels) for best_loss/ and last/. The
+# settings under task_data_only replace the ones above.
 output_dir: outputs/calms21/pretrain
+use_all_data: true
+task_data_only:
+  output_dir: outputs/calms21/pretrain_task1
+  data:
+    format: calms21
+    train: calms21/task1/calms21_task1_train.json
+    test: calms21/task1/calms21_task1_test.json
 
 data:
   format: calms21_pretraining

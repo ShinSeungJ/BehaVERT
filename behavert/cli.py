@@ -22,6 +22,15 @@ import json
 from pathlib import Path
 
 
+def _true_false(value: str) -> bool:
+    v = value.strip().lower()
+    if v in ("true", "1", "yes"):
+        return True
+    if v in ("false", "0", "no"):
+        return False
+    raise argparse.ArgumentTypeError(f"expected true or false, got {value!r}")
+
+
 def _apply_overrides(cfg: dict, items: list[str]) -> dict:
     """``--set a.b=value`` (value parsed as YAML)."""
     import yaml
@@ -110,10 +119,18 @@ def cmd_pretrain(args) -> None:
 
     from .model import BehaVERTConfig
     from .pretraining import MaskedKeypointModel, evaluate_pretraining, pretrain_loss_step
-    from .recipes import build_datasets, load_config, resolve_device
+    from .recipes import _merge, build_datasets, load_config, resolve_device
     from .training import TrainConfig, fit, make_loader, set_seed
 
     cfg = _apply_overrides(load_config(args.config, args.task), args.set)
+    # use_all_data (config or --use-all-data): false swaps in the task_data_only settings
+    if args.use_all_data is not None:
+        cfg["use_all_data"] = args.use_all_data
+    task_only = cfg.pop("task_data_only", None)
+    if not cfg.get("use_all_data", True):
+        if not task_only:
+            raise SystemExit(f"{args.config} has no task_data_only settings for use_all_data: false")
+        cfg = _merge(cfg, task_only)
     tcfg = TrainConfig.from_dict(cfg.get("train", {}))
     out_dir = Path(args.output_dir or cfg.get("output_dir", "outputs/pretrain"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -139,6 +156,25 @@ def cmd_pretrain(args) -> None:
     evaluate = (lambda mdl: evaluate_pretraining(mdl, valid, ratio, tcfg.seed)) if valid else None
     summary = fit(model, loader, tcfg, out_dir, pretrain_loss_step(ratio), evaluate, select_on=None)
     print(json.dumps(summary["best"], indent=2))
+
+    # with a data.test file (e.g. CalMS21 with --use-all-data false) the encoder is
+    # scored on it: reconstruction error of the masked coordinates, in keypoint units
+    if ds.test_recordings and not args.skip_test:
+        from .recipes import make_windows
+        from .data.dataset import WindowDataset
+
+        test_w, _ = make_windows(ds.test_recordings, cfg["data"]["window"])
+        test_loader = make_loader(WindowDataset(test_w), tcfg.eval_batch_size)
+        results = {}
+        for name in ("best_loss", "last"):
+            d = out_dir / name
+            if d.exists():
+                rep = evaluate_pretraining(MaskedKeypointModel.from_pretrained(d, device), test_loader, ratio, tcfg.seed)
+                results[name] = rep
+                print(f"\n=== {name} ===\ntest (masked coordinates):\n"
+                      f"  MSE {rep['loss']:.4f}   RMSE {rep['rmse']:.4f}   MAE {rep['mae']:.4f}   "
+                      f"(keypoint units, {len(test_w.inputs)} windows)")
+        (out_dir / "test_results.json").write_text(json.dumps(results, indent=2) + "\n")
 
 
 # ------------------------------------------------------------------ evaluate
@@ -302,8 +338,11 @@ def main(argv=None) -> None:
         p.add_argument("--output-dir", help="overrides output_dir in the config")
         p.add_argument("--set", nargs="+", action="extend", default=[], metavar="KEY=VALUE",
                        help="override config entries (may be repeated)")
-        if name == "train":
-            p.add_argument("--skip-test", action="store_true")
+        p.add_argument("--skip-test", action="store_true", help="skip scoring on the config's test set")
+        if name == "pretrain":
+            p.add_argument("--use-all-data", type=_true_false, metavar="{true,false}",
+                           help="pretrain on all data (true) or on the task's training data only, then score "
+                                "the encoder on its test data (false); default: use_all_data in the config")
         p.set_defaults(func=func)
 
     p = sub.add_parser("attention", help="attention vs confidence, correctness and behaviors, as CSV tables",
