@@ -81,7 +81,7 @@ through one command, `behavert` (`behavert <command> -h` lists the options).
 ## Quick start
 
 Models are downloaded from the Hugging Face Hub on first use. The demo inputs
-are in [`demo/`](demo): videos in `demo/video/`, keypoints and labels in `demo/csv/`.
+are in [`demo_data/`](demo_data): videos in `demo_data/video/`, keypoints and labels in `demo_data/keypoints/`.
 The [quick-start notebook](notebooks/quickstart.ipynb)
 ([Colab](https://colab.research.google.com/github/ShinSeungJ/BehaVERT/blob/main/notebooks/quickstart.ipynb))
 walks through the same steps.
@@ -97,7 +97,7 @@ behaviors: supported rearing, unsupported rearing, grooming, freezing, jumping,
 backwards walking and others.
 
 ```bash
-behavert decode --video demo/video/oft.mp4 --model oft-behavior --overlay --sync
+behavert decode --video demo_data/video/oft.mp4 --model oft-behavior --overlay --sync
 ```
 
 `--video` also takes a folder, and every video in it is processed.
@@ -127,15 +127,15 @@ labels, if given, are drawn beside the predictions.
 
 ```bash
 # CalMS21: attack / investigation / mount per frame
-behavert decode --keypoints demo/csv/calms21_mouse071_task1_annotator1.csv \
-    --labels demo/csv/calms21_mouse071_task1_annotator1_labels.csv \
-    --video demo/video/calms21_mouse071_task1_annotator1.mp4 \
+behavert decode --keypoints demo_data/keypoints/calms21_mouse071_task1_annotator1.csv \
+    --labels demo_data/keypoints/calms21_mouse071_task1_annotator1_labels.csv \
+    --video demo_data/video/calms21_mouse071_task1_annotator1.mp4 \
     --model calms21-task1 --sync --frames 9000
 
 # MABe22: strain of a mouse triplet
-behavert decode --keypoints demo/csv/mabe22_E21WHFXBDGA4XVHZQKD5.csv \
-    --labels demo/csv/mabe22_E21WHFXBDGA4XVHZQKD5_labels.csv \
-    --video demo/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 \
+behavert decode --keypoints demo_data/keypoints/mabe22_E21WHFXBDGA4XVHZQKD5.csv \
+    --labels demo_data/keypoints/mabe22_E21WHFXBDGA4XVHZQKD5_labels.csv \
+    --video demo_data/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 \
     --model mabe22-strain --sync --frames 1800
 ```
 
@@ -146,7 +146,7 @@ among other videos of the dataset in the embedding map:
 
 ```bash
 behavert decode --config configs/mabe22/state.yaml --task strain --recording E21WHFXBDGA4XVHZQKD5 \
-    --model mabe22-strain --video demo/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 --sync --frames 1800
+    --model mabe22-strain --video demo_data/video/mabe22_E21WHFXBDGA4XVHZQKD5.mp4 --sync --frames 1800
 ```
 
 <br clear="right">
@@ -356,7 +356,7 @@ BehaVERT/
 │   └── cli.py               the `behavert` command
 ├── configs/               one YAML per experiment, plus custom_token.yaml and custom_state.yaml
 ├── dataset/               benchmark data (`behavert download`) and sample videos
-├── demo/                  demo videos (video/) and keypoints with labels (csv/)
+├── demo_data/             demo videos (video/) and keypoints with labels (keypoints/)
 ├── notebooks/             quick-start notebook
 ├── scripts/               checkpoint conversion
 └── assets/                figures and videos for this README
