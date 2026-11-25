@@ -418,6 +418,18 @@ def stratified_split(
     return tr, va, te
 
 
+def _recording_class(r: Recording) -> int:
+    """A recording's single class: its ``label``, or the label shared by all its frames."""
+    if r.label is not None:
+        return int(r.label)
+    y = r.labels_per_frame()
+    values = [] if y is None else torch.unique(y[y >= 0]).tolist()
+    if len(values) != 1:
+        raise ValueError(f"recording {r.name!r} needs one label for the whole recording "
+                         f"for a per-class split; found {values or 'none'}")
+    return int(values[0])
+
+
 def per_class_split(recordings: list[Recording], train: float = 0.6, valid: float = 0.2, seed: int = 42) -> Split:
     """Shuffle the recordings of each class (in class order) and split each class.
 
@@ -426,7 +438,7 @@ def per_class_split(recordings: list[Recording], train: float = 0.6, valid: floa
     np.random.seed(seed)
     by_class: dict[int, list[Recording]] = defaultdict(list)
     for r in recordings:
-        by_class[int(r.label)].append(r)
+        by_class[_recording_class(r)].append(r)
     tr, va, te = [], [], []
     for c in sorted(by_class):
         items = list(by_class[c])
