@@ -6,7 +6,7 @@
     behavert train    configs/mabe22/behavior.yaml --task chase
     behavert evaluate configs/mabe22/state.yaml mabe22-strain --task strain
     behavert attention configs/mabe22/state.yaml mabe22-strain --task strain
-    behavert embed    configs/calms21/task1.yaml calms21-task1
+    behavert embed    configs/calms21/task1_pretrained.yaml calms21-task1
     behavert pretrain configs/calms21/pretrain.yaml
 
     behavert download calms21 mabe22     # benchmark data into dataset/
