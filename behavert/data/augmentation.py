@@ -1,4 +1,4 @@
-"""Context-aware data augmentation (paper Section 3.3).
+"""Context-aware data augmentation.
 
 Each call picks 1-2 operations at random from {mirror, rotate, rotate_90,
 shift, jitter} and applies them to one window. Every operation respects the

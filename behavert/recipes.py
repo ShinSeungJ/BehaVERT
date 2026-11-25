@@ -1,10 +1,10 @@
 """Build data, model, loss and sampler from a YAML experiment config.
 
-See ``configs/`` for the paper experiments, and ``configs/custom_token.yaml``
-(per-frame labels) or ``configs/custom_state.yaml`` (one label per recording) for
-your own data. A config may start with ``base: <other.yaml>`` (relative to
-itself) and may offer several variants under ``tasks:``, chosen with
-``--task``. Data paths are resolved against ``data_root`` unless absolute.
+Use ``configs/custom_token.yaml`` (per-frame labels) or ``configs/custom_state.yaml``
+(one label per recording) for your own data. A config may start with
+``base: <other.yaml>`` (relative to itself) and may offer several variants under
+``tasks:``, chosen with ``--task``. Data paths are resolved against ``data_root``
+unless absolute.
 """
 
 from __future__ import annotations
@@ -213,7 +213,7 @@ def load_split_recordings(cfg: dict, root, seed: int) -> dict[str, Optional[list
                 files[key] = _load_file(data, key, root, names)
                 report.loaded(report.recordings_summary(files[key]))
         train, valid, test = files.get("train"), files.get("valid"), files.get("test")
-        if method == "test_as_valid":  # paper CalMS21 Task 3: no separate validation set
+        if method == "test_as_valid":  # CalMS21 Task 3: no separate validation set
             return {"train": train, "valid": test, "test": test}
         if method == "random_windows" or valid is not None:
             return {"train": train, "valid": valid, "test": test}

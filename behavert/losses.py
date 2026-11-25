@@ -1,4 +1,4 @@
-"""Losses for imbalanced behavior data (paper Section 3.4).
+"""Losses for imbalanced behavior data.
 
 All losses take logits ``[..., C]`` and integer targets ``[...]``; targets of
 ``-1`` (padding) are ignored. The weighted losses (weighted_ce, focal, hybrid)
@@ -100,7 +100,7 @@ class FocalLoss(_Masked):
 
 
 class HybridLoss(_Masked):
-    """``(1 - alpha) * weighted CE + alpha * focal`` (paper Eq. 10).
+    """``(1 - alpha) * weighted CE + alpha * focal``.
 
     The class weights apply to the cross-entropy term; the focal term is unweighted.
     """
@@ -141,7 +141,7 @@ class CrossEntropyLoss(nn.CrossEntropyLoss):
 
 
 class SoftF1Loss(nn.Module):
-    """``1 - macro F1`` computed from softmax probabilities (paper Eq. 14).
+    """``1 - macro F1`` computed from softmax probabilities.
 
     Frame targets of ``-1`` are ignored. Optional ``class_weights`` (and/or
     ``class_weight_multipliers``) turn the macro average into a weighted one.

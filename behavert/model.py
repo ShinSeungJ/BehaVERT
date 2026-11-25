@@ -4,7 +4,7 @@ Each video frame is one token. A frame's keypoints are flattened into a vector
 and linearly projected to the BERT hidden size; positional information is
 added, and a 12-layer BERT encoder contextualises the sequence.
 
-Two prediction heads (paper Section 3.2):
+Two prediction heads:
 
 * ``mode="token"``    — one label per frame (behavior classification).
 * ``mode="sequence"`` — one label per window via a learnable ``[CLS]`` token

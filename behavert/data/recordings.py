@@ -9,9 +9,6 @@ Bring your own data with :func:`load_recordings`: a ``.pt`` / ``.pkl`` /
 (``labels`` optional). Keypoints are flattened per frame in C order, so a
 ``[T, animals, keypoints, coords]`` array becomes animal-major, then keypoint,
 then coordinate — the order the released models expect.
-
-Loaders for the five paper benchmarks follow the curated files of the
-BehaVERT dataset release (see each dataset's README there).
 """
 
 from __future__ import annotations

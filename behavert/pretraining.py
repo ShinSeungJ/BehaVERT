@@ -1,4 +1,4 @@
-"""Self-supervised pretraining by masked keypoint modeling (paper Section 3.5).
+"""Self-supervised pretraining by masked keypoint modeling.
 
 A random ``mask_ratio`` of the individual coordinates in each window is set to
 0 and the encoder, through a small decoder, reconstructs them. The loss is the

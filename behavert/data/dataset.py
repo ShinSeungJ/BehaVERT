@@ -40,7 +40,7 @@ def windows_from_recordings(
 class WindowDataset(Dataset):
     """Windows plus optional context-aware augmentation.
 
-    Augmentation follows the paper: a window is used as-is the first time it
+    Augmentation: a window is used as-is the first time it
     is drawn and augmented on every later draw (the stored data is never
     changed). Only windows that contain one of ``augment_classes`` are
     augmented (``None`` = all windows).
@@ -114,7 +114,7 @@ def subset_windows(w: Windows, idx) -> Windows:
 
 
 class ProportionalBatchSampler(Sampler):
-    """Class-balanced batches (paper Algorithm 1, Eq. 9).
+    """Class-balanced batches.
 
     For every batch, each class ``c`` contributes ``ceil(p_c * B)`` windows
     drawn with replacement from the windows that contain ``c``; the pool is

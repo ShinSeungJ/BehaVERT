@@ -1,4 +1,4 @@
-"""Cut recordings into fixed-length windows (paper Section 3.3, temporal unfolding).
+"""Cut recordings into fixed-length windows.
 
 A recording is a ``[T, F]`` array of flattened keypoints (``F`` = animals x
 keypoints x coordinates) with optional per-frame labels ``[T]``. The model sees
