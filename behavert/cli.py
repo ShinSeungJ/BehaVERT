@@ -156,7 +156,8 @@ def _hyperparameter_rows(args, cfg: dict, tcfg, out_dir, summary: dict, pretrain
              ("Weight decay", report.number(tcfg.weight_decay)), ("Warmup", warmup), ("Total steps", total),
              ("Grad accum steps", tcfg.grad_accum)]
     rows += _window_rows(cfg) + [("Max grad norm", report.number(tcfg.max_grad_norm))] + _augmentation_rows(cfg)
-    rows += [("Report every step", tcfg.log_every), ("Eval every step", tcfg.eval_every),
+    every = lambda v: v if v == "epoch" else f"{v} step" + ("" if v == 1 else "s")  # noqa: E731
+    rows += [("Report every", every(tcfg.log_every)), ("Eval every", every(tcfg.eval_every)),
              ("Early stop patience", summary["patience"]), ("Seed", tcfg.seed)]
     return rows
 
