@@ -267,7 +267,7 @@ def _split_description(cfg: dict, method: str, split: dict, tr: float, va: float
 def count_windows(recs: list[R.Recording], window: dict) -> int:
     """Number of windows ``make_windows`` would build, without building them."""
     L = window["length"]
-    s = window.get("stride") or max(1, L // 2)
+    s = resolve_stride(window)
     pad = window.get("pad_remainder", True)
     lengths = [sum(r.num_frames for r in recs)] if window.get("concat_recordings") else [r.num_frames for r in recs]
     n = 0
@@ -277,11 +277,49 @@ def count_windows(recs: list[R.Recording], window: dict) -> int:
     return n
 
 
+def resolve_stride(window: dict) -> int:
+    """``data.window.stride`` in frames.
+
+    A value in (0, 1] (``0.5``, ``"1/2"``, ``0.25``, ``"1/4"``; ``1`` = the whole
+    window) is a share of the window length; a whole number above 1 is a number
+    of frames. Unset means half a window.
+    """
+    from fractions import Fraction
+
+    L = window["length"]
+    spec = window.get("stride")
+    if spec is None:
+        return max(1, L // 2)
+    try:
+        value = Fraction(str(spec).strip())
+    except (ValueError, ZeroDivisionError):
+        raise ValueError(f"data.window.stride must be a fraction (0.5, 1/2) or a number of frames (32), "
+                         f"got {spec!r}") from None
+    if 0 < value <= 1:
+        frames = max(1, int(round(float(value) * L)))
+    elif value > 1 and value.denominator == 1:
+        frames = int(value)
+    else:
+        raise ValueError(f"data.window.stride must be a fraction in (0, 1] or a whole number of frames, got {spec!r}")
+    if frames > L:
+        raise ValueError(f"data.window.stride={spec} is {frames} frames, more than the window length ({L})")
+    return frames
+
+
+def stride_description(window: dict) -> str:
+    """The stride for the log: ``32``, or ``32 (1/2 of the window)`` when given as a share."""
+    frames, spec = resolve_stride(window), window.get("stride")
+    if spec is None or (isinstance(spec, int) and spec > 1):
+        return str(frames)
+    share = "the whole window" if frames == window["length"] else f"{spec} of the window"
+    return f"{frames} ({share})"
+
+
 def make_windows(recs: list[R.Recording], window: dict):
     return windows_from_recordings(
         recs,
         length=window["length"],
-        stride=window.get("stride"),
+        stride=resolve_stride(window),
         pad_remainder=window.get("pad_remainder", True),
         concat=window.get("concat_recordings", False),
     )
@@ -310,7 +348,7 @@ def build_datasets(cfg: dict, root, seed: int, sequence_labels: bool) -> Dataset
     recs = load_split_recordings(cfg, root, seed)
     augment_fn, augment_classes = build_augmentation(data.get("augmentation"))
     method = data.get("split", {}).get("method", "random_windows")
-    how = f"{window['length']} frames, stride {window.get('stride') or window['length'] // 2}"
+    how = f"{window['length']} frames, stride {resolve_stride(window)}"
     if window.get("concat_recordings"):
         how += ", recordings joined"
     if sequence_labels:
@@ -374,7 +412,7 @@ def build_model(cfg: dict, input_dim: int) -> BehaVERT:
     w = cfg["data"]["window"]
     preprocessing = m.pop("preprocessing", {})
     preprocessing.setdefault("window", w["length"])
-    preprocessing.setdefault("stride", w.get("stride") or w["length"] // 2)
+    preprocessing.setdefault("stride", resolve_stride(w))
     config = BehaVERTConfig(input_dim=input_dim, max_seq_length=w["length"], preprocessing=preprocessing, **m)
     model = BehaVERT(config)
     if init_from:

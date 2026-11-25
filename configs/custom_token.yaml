@@ -39,7 +39,7 @@ data:
     valid: 0.2                         # the rest is the test set (ignored if `test` is given)
   window:
     length: 64                         # frames per window (at most 512)
-    stride: 32                         # 50% overlap; use `length` for non-overlapping windows
+    stride: 32                         # frames, or a share of the window (0.5, 1/2); 1 = no overlap
     pad_remainder: true                # keep the last, shorter piece of each recording
   augmentation:                        # remove this block to train without augmentation
     classes: null                      # augment every window; or a list of class ids

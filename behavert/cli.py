@@ -106,8 +106,10 @@ def _augmentation_rows(cfg: dict) -> list:
 
 
 def _window_rows(cfg: dict) -> list:
+    from .recipes import stride_description
+
     w = cfg["data"]["window"]
-    return [("Max seq length", w["length"]), ("Sequence stride", w.get("stride") or w["length"] // 2)]
+    return [("Max seq length", w["length"]), ("Sequence stride", stride_description(w))]
 
 
 def _start_rows(args, cfg: dict, tcfg, out_dir, pretraining: bool = False) -> list:
