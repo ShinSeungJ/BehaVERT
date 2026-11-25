@@ -152,6 +152,17 @@ def count_episodes(labels: np.ndarray, cls: int) -> int:
     return int(((hit[1:] == 1) & (hit[:-1] == 0)).sum() + (hit[:1] == 1).sum()) if len(hit) else 0
 
 
+def summary_rows(res: Analysis, label_names: list[str], fps: float) -> list[dict]:
+    """Frames, seconds, percent and episodes of every class."""
+    T = len(res.labels)
+    rows = []
+    for c, n in enumerate(label_names):
+        frames = int((res.labels == c).sum())
+        rows.append({"behavior": n, "frames": frames, "seconds": round(frames / fps, 2),
+                     "percent": round(100 * frames / max(T, 1), 3), "episodes": count_episodes(res.labels, c)})
+    return rows
+
+
 def write_tables(res: Analysis, label_names: list[str], fps: float, out_dir: Path) -> None:
     """``behavior.csv`` (one row per frame) and ``summary.csv`` (one row per behavior)."""
     import pandas as pd
@@ -169,12 +180,7 @@ def write_tables(res: Analysis, label_names: list[str], fps: float, out_dir: Pat
         df[f"p_{n}"] = np.round(res.probs[:, c], 4)
     df.to_csv(out_dir / "behavior.csv", index=False)
 
-    rows = []
-    for c, n in enumerate(label_names):
-        frames = int((res.labels == c).sum())
-        rows.append({"behavior": n, "frames": frames, "seconds": round(frames / fps, 2),
-                     "percent": round(100 * frames / max(T, 1), 3), "episodes": count_episodes(res.labels, c)})
-    summary = pd.DataFrame(rows)
+    summary = pd.DataFrame(summary_rows(res, label_names, fps))
     if res.recording_label is not None:
         summary["recording_probability"] = np.round(res.recording_probs, 4)
         summary["recording_prediction"] = [n == label_names[res.recording_label] for n in label_names]

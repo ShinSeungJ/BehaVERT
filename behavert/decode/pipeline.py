@@ -21,8 +21,9 @@ from typing import Optional, Sequence
 
 import numpy as np
 
+from .. import report
 from ..model import BehaVERT
-from .analysis import Analysis, analyze, write_tables
+from .analysis import Analysis, analyze, summary_rows, write_tables
 from .layout import KeypointLayout
 
 VIDEO_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv", ".mpg", ".mpeg", ".m4v", ".wmv")
@@ -184,24 +185,64 @@ def decode(
     layout = KeypointLayout.from_config(cfg)
     names = list(cfg.label_names) or [str(i) for i in range(cfg.num_classes)]
 
-    items: list[Item] = []
-    pool = None  # all recordings of the dataset (benchmark inputs)
+    # ---------------------------------------------------------------- settings
+    L = cfg.max_seq_length
+    win_stride = stride or cfg.preprocessing.get("stride") or L // 2
+    videos = find_videos(video) if video and not (config or keypoints) else []
     if config:
         if not recording:
             raise SystemExit("--config needs --recording")
+        source = f"{config}" + (f" (task: {task})" if task else "") + f", recording {recording}"
+    elif keypoints:
+        source = str(keypoints)
+    elif video:
+        source = f"{video} ({len(videos)} video{'s' if len(videos) != 1 else ''})"
+    else:
+        raise SystemExit("give --video, --keypoints, or --config with --recording")
+    disp = cfg.display or {}
+    n_ref = int(backdrop if backdrop is not None else (disp.get("embedding") or {}).get("reference_recordings", 0))
+    first = f" from frame {start}" if start else ""
+    rows = [("Model", f"{model if isinstance(model, str) else '(in-memory model)'} "
+                      f"({cfg.mode}, {cfg.num_classes} classes)")]
+    if videos:
+        rows.append(("Pose model", pose_model or cfg.keypoints.get("pose_model") or "-"))
+    rows.append(("Input", source))
+    if labels is not None:
+        rows.append(("Labels", labels))
+    if video and (config or keypoints):
+        rows.append(("Video", video))
+    rows += [("Output dir", out), ("Max seq length", L), ("Sequence stride", win_stride),
+             ("Overlay video", (f"{frames} frames{first}" if frames else f"all frames{first}")
+              if overlay else "no"),
+             ("Sync video", f"{frames or sync_frames} frames{first}" if sync else "no")]
+    if sync and config and n_ref:
+        rows.append(("Embedding backdrop", f"{n_ref} recordings of the dataset"))
+    rows.append(("Device", dev))
+    report.block("DECODE CONFIGURATION", rows)
+
+    # ---------------------------------------------------------------- inputs
+    items: list[Item] = []
+    pool = None  # all recordings of the dataset (benchmark inputs)
+    first_col = "Behavior" if cfg.mode == "token" else "Class"
+    if config:
+        from ..recipes import load_config
+
+        first_col = "Behavior" if cfg.mode == "token" else str(load_config(config, task).get("label_title", "class")).capitalize()
         name, x, y, pool = read_benchmark_recording(config, recording, data_root, task)
         items.append(Item(Path(name).name, Path(video) if video else None, x, y, key=name))
     elif keypoints:
+        report.loading("keypoints", keypoints)
         name, x, y = read_keypoint_file(keypoints, recording)
+        report.loaded(f"Loaded {len(x):,} frames, {x.shape[1]} values per frame")
         items.append(Item(Path(name).name, Path(video) if video else None, x, y, key=name))
-    elif video:
-        items = [Item(n, v) for n, v in find_videos(video)]
     else:
-        raise SystemExit("give --video, --keypoints, or --config with --recording")
+        items = [Item(n, v) for n, v in videos]
     if labels is not None:
         if len(items) != 1:
             raise SystemExit("--labels works with a single recording")
+        report.loading("labels", labels)
         items[0].ground_truth = read_labels(labels, names)
+        report.loaded(f"Loaded {len(items[0].ground_truth):,} frames")
         n = len(items[0].frames) if items[0].frames is not None else None
         if n is not None and len(items[0].ground_truth) < min(n, limit or n):
             raise SystemExit(f"--labels has {len(items[0].ground_truth)} rows but the input has {n} frames")
@@ -210,12 +251,16 @@ def decode(
     reference = None
     strip_cache: dict = {}
     out_dirs = []
-    for it in items:
+    folder_rows = []
+    for i, it in enumerate(items, start=1):
         d = Path(out) / it.name
         d.mkdir(parents=True, exist_ok=True)
         kp_csv = d / "keypoints.csv"
         rate = fps
         used_pose = None
+        written: list[tuple[str, Path]] = []
+        if len(items) > 1:
+            report.item_header(i, len(items), it.video.name if it.video else it.name)
         # reuse earlier outputs only if they were made the same way
         prev = json.loads((d / "run.json").read_text()) if (d / "run.json").exists() else {}
         same_input = prev.get("limit") == limit and prev.get("input") == str(it.video or keypoints or config)
@@ -224,6 +269,9 @@ def decode(
 
         # 1. keypoints
         if it.frames is None:
+            report.loading("video", it.video)
+            n_frames, size, vfps = _video_info(it.video)
+            report.loaded(f"Loaded {min(n_frames, limit or n_frames):,} frames, {size[0]} x {size[1]}, {vfps:g} fps")
             if kp_csv.exists() and not fresh:
                 it.frames = read_keypoint_file(kp_csv)[1]
             else:
@@ -235,12 +283,13 @@ def decode(
                         raise SystemExit("this model names no pose model; pass --pose-model")
                     pose = PoseModel(pose_name, device=dev)
                 used_pose = pose_name
+                print(f"Estimating keypoints with {pose_name}", flush=True)
                 p = pose.predict_video(it.video, max_frames=limit)
                 it.frames = pose_to_model_frames(p, layout)
                 rate = rate or p.fps
                 _write_keypoints(kp_csv, it.frames, layout)
-                print(f"[{it.name}] keypoints: {len(it.frames)} frames, "
-                      f"{int((~p.detected).sum())} without detection (interpolated)")
+                written.append(("Keypoints", kp_csv))
+                report.loaded(f"{len(it.frames):,} frames, {int((~p.detected).sum()):,} without a detection (interpolated)")
         if limit and len(it.frames) > limit:
             it.frames = it.frames[:limit]
             if it.ground_truth is not None:
@@ -256,10 +305,23 @@ def decode(
             res = analyze(net, it.frames, stride=stride, batch_size=batch_size)
             res.save(npz)
             write_tables(res, names, rate, d)
-        top = np.bincount(res.labels, minlength=len(names))
-        msg = ", ".join(f"{names[c]} {100 * top[c] / len(res.labels):.1f}%" for c in np.argsort(-top)[:3])
-        print(f"[{it.name}] {len(res.labels)} frames — {msg}"
-              + (f" — recording: {names[res.recording_label]}" if res.recording_label is not None else ""))
+            written += [("Behavior", d / "behavior.csv"), ("Summary", d / "summary.csv")]
+            report.step_line(f"Decoding behavior ({L} frames, stride {win_stride})",
+                             f"{len(res.labels):,} frames in {len(res.window_starts):,} sequences")
+        rows_i = summary_rows(res, names, rate)
+        line = None
+        if res.recording_label is not None:
+            line = (f"Recording label: {names[res.recording_label]} "
+                    f"(mean probability {res.recording_probs[res.recording_label]:.4f})")
+            if it.ground_truth is not None:
+                gt = np.asarray(it.ground_truth)
+                gt = gt[gt >= 0]
+                if len(gt):
+                    line += f"   Ground truth: {names[int(np.bincount(gt.astype(int)).argmax())]}"
+        report.behavior_summary(it.name, rows_i, first_col, line)
+        folder_rows.append((it.name, [r["percent"] for r in rows_i]))
+        for what, path in written:
+            report.saved(what, path)
 
         # 3. videos
         from .render import render_overlay, render_sync
@@ -267,16 +329,13 @@ def decode(
         redo_videos = force or not same_model
         if overlay and (redo_videos or not (d / "overlay.mp4").exists()):
             render_overlay(d / "overlay.mp4", it.frames, res, layout, names, it.video, rate, start, frames,
-                           label_colors=cfg.label_colors, style=(cfg.display or {}).get("overlay"))
-            print(f"[{it.name}] wrote {d / 'overlay.mp4'}")
+                           label_colors=cfg.label_colors, style=disp.get("overlay"))
+            report.saved("Overlay video", d / "overlay.mp4")
         if sync and (redo_videos or not (d / "sync.mp4").exists()):
             from .embedding import reference_embeddings
 
-            disp = cfg.display or {}
-            n_ref = int(backdrop if backdrop is not None
-                        else (disp.get("embedding") or {}).get("reference_recordings", 0))
             if n_ref and pool and reference is None:
-                print(f"[{it.name}] embedding backdrop from {n_ref} recordings of the dataset")
+                print(f"Embedding backdrop: {n_ref} recordings of the dataset", flush=True)
                 reference = reference_embeddings(net, pool, n_ref)
             extra = None
             if disp.get("extra_strip") and it.key and config:
@@ -284,7 +343,7 @@ def decode(
             render_sync(d / "sync.mp4", net, it.frames, layout, names, it.video, rate, start,
                         frames or sync_frames, it.ground_truth, name=it.name, reference=reference,
                         extra_strip=extra, batch_size=batch_size)
-            print(f"[{it.name}] wrote {d / 'sync.mp4'}")
+            report.saved("Sync video", d / "sync.mp4")
 
         (d / "run.json").write_text(json.dumps({
             "model": str(model) if isinstance(model, str) else "(in-memory model)",
@@ -294,6 +353,17 @@ def decode(
             "labels": names,
         }, indent=2) + "\n")
         out_dirs.append(d)
+        if len(items) > 1:
+            print()
+
+    if len(items) > 1:
+        import pandas as pd
+
+        unit = "video" if videos else "recording"
+        report.folder_summary(folder_rows, names, unit)
+        table = pd.DataFrame([[n, *p] for n, p in folder_rows], columns=[unit] + [f"{c}_percent" for c in names])
+        table.to_csv(Path(out) / "summary.csv", index=False)
+        report.saved(f"Summary of all {unit}s", Path(out) / "summary.csv")
     return out_dirs
 
 
@@ -303,6 +373,19 @@ def _write_keypoints(path: Path, frames: np.ndarray, layout: KeypointLayout) -> 
     cols = layout.column_names()
     pd.DataFrame(frames, columns=cols if len(cols) == frames.shape[1] else None).to_csv(
         path, index=False, float_format="%.6f")
+
+
+def _video_info(video) -> tuple[int, tuple[int, int], float]:
+    """Frame count, (width, height) and frame rate of a video file."""
+    import cv2
+
+    cap = cv2.VideoCapture(str(video))
+    if not cap.isOpened():
+        raise SystemExit(f"cannot open video {video}")
+    info = (int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))), cap.get(cv2.CAP_PROP_FPS) or 0.0)
+    cap.release()
+    return info
 
 
 def _video_fps(video) -> Optional[float]:

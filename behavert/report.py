@@ -241,3 +241,95 @@ def inference_table(results: dict[str, dict], kind: str, units: str = "") -> Non
             _p(f"{title}{res['loss']:>15.2f}{rmse:>13}{mae:>13}")
         _p(_rule())
     _p("=" * WIDE)
+
+
+# ------------------------------------------------------------------ decode / embed / attention
+def saved(what: str, path) -> None:
+    _p(f"{what} saved successfully to {path}.")
+
+
+def item_header(i: int, n: int, name: str) -> None:
+    _p("-" * WIDE)
+    _p(f"[{i}/{n}] {name}")
+    _p("-" * WIDE)
+
+
+def behavior_summary(name: str, rows: Sequence[dict], first_col: str = "Behavior",
+                     recording_line: Optional[str] = None) -> None:
+    """Frames, seconds, percent and episodes per class of one recording."""
+    _p()
+    banner(f"BEHAVIOR SUMMARY: {name}", WIDE)
+    _p(f"{first_col:<26}{'Frames':>12}{'Seconds':>13}{'Percent':>13}{'Episodes':>13}")
+    _p(_rule())
+    for r in rows:
+        pct = f"{r['percent']:.2f}%"
+        _p(f"{r['behavior']:<26}{r['frames']:>12}{r['seconds']:>13.2f}{pct:>13}{r['episodes']:>13}")
+    if recording_line:
+        _p(_rule())
+        _p(recording_line)
+    _p("=" * WIDE)
+    _p()
+
+
+def folder_summary(rows: Sequence[tuple[str, Sequence[float]]], names: Sequence[str], unit: str = "recording") -> None:
+    """One row per recording with the percent of each class (after several recordings)."""
+    _p()
+    banner(f"DECODE SUMMARY ({len(rows)} {unit}s)", WIDE)
+    parts = [n.split("_", 1) if "_" in n else [n] for n in names]
+    width = [max(9, max(len(p) for p in ps) + 2) for ps in parts]
+    first = max(12, max(len(r[0]) for r in rows) + 2)
+    for line in range(max(len(p) for p in parts)):
+        cells = [(ps[line] if line < len(ps) else "") for ps in parts]
+        _p(f"{(unit.capitalize() if line == 0 else ''):<{first}}" + "".join(f"{c:>{w}}" for c, w in zip(cells, width)))
+    _p(_rule())
+    for name, pct in rows:
+        _p(f"{name:<{first}}" + "".join(f"{f'{v:.2f}%':>{w}}" for v, w in zip(pct, width)))
+    _p("=" * WIDE)
+
+
+def clustering_table(metrics) -> None:
+    _p()
+    banner("CLUSTERING", WIDE)
+    _p(f"{'Clusters':<26}{'NMI':>11}{'Purity':>13}{'Accuracy':>13}{'Macro F1':>13}{'n':>16}")
+    _p(_rule())
+    for _, r in metrics.iterrows():
+        cells = [f"{r[k]:.4f}" if r[k] == r[k] else "-" for k in ("nmi", "purity", "accuracy", "macro_f1")]
+        _p(f"{r['clusters']:<26}{cells[0]:>11}{cells[1]:>13}{cells[2]:>13}{cells[3]:>13}{int(r['n']):>16,}")
+    _p("=" * WIDE)
+    _p()
+
+
+def _groups(a: str, b: str) -> str:
+    """``high confidence`` / ``low confidence`` -> ``high / low confidence``."""
+    wa, wb = str(a).split(), str(b).split()
+    k = 0
+    while k < min(len(wa), len(wb)) - 1 and wa[-1 - k] == wb[-1 - k]:
+        k += 1
+    if k:
+        return f"{' '.join(wa[:-k])} / {' '.join(wb[:-k])} {' '.join(wa[-k:])}"
+    return f"{a} / {b}"
+
+
+def attention_tests_table(tests) -> None:
+    """The attention tests grouped by layer (last layer, all layers, model output)."""
+    _p()
+    banner("ATTENTION TESTS", WIDE)
+    _p(f"{'Analysis':<29}{'Groups (A / B)':<23}{'Mean A':>8}{'Mean B':>10}{'p-value':>10}  Test")
+    _p(_rule())
+    sections: dict[str, list] = {}
+    for _, r in tests.iterrows():
+        a = str(r["analysis"])
+        if a.endswith("(last layer)"):
+            sec, a = "Last layer", a[: -len("(last layer)")].strip()
+        elif a.endswith("(all layers)"):
+            sec, a = "All layers", a[: -len("(all layers)")].strip()
+        else:
+            sec = "Model output"
+        sections.setdefault(sec, []).append((a.replace("attention spread", "spread"), r))
+    for sec, rows in sections.items():
+        _p(sec)
+        for a, r in rows:
+            _p(f"  {a:<27}{_groups(r['group_a'], r['group_b']):<23}{r['mean_a']:>8.6f}{r['mean_b']:>10.6f}"
+               f"{r['p_value']:>10.2e}  {r['test']}")
+    _p("=" * WIDE)
+    _p()

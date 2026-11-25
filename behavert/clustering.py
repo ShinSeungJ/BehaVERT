@@ -1,13 +1,11 @@
-"""Embedding map and clustering quality over a set of recordings (paper Figs. 1b, 7).
+"""Embedding map and clustering quality over a set of recordings.
 
 Embeddings are taken per frame for token models (last-layer frame vectors)
 and per window for sequence models (the ``[CLS]`` vector), reduced with PCA
 and projected to 2D with t-SNE or UMAP.
 
 ``embedding.csv``  one row per point: recording, frame or window, x, y, true and predicted class
-``clustering.csv`` how well the embedding separates the classes:
-                   NMI / purity / accuracy / macro F1 of the model's predictions, and
-                   NMI / purity of k-means clusters (k = number of classes) of the embeddings
+``clustering.csv`` NMI, purity, accuracy and macro F1 of the model's predictions
 ``embedding.png`` + ``embedding.svg`` / ``.pdf`` scatter colored by class (text stays editable)
 """
 
@@ -84,18 +82,15 @@ def purity(y_true: np.ndarray, clusters: np.ndarray) -> float:
     return total / max(len(y_true), 1)
 
 
-def clustering_metrics(emb: np.ndarray, table: pd.DataFrame, num_classes: int, seed: int = 0) -> pd.DataFrame:
-    from sklearn.cluster import KMeans
+def clustering_metrics(table: pd.DataFrame) -> pd.DataFrame:
+    """NMI, purity, accuracy and macro F1 of the model's predictions against the true classes."""
     from sklearn.metrics import accuracy_score, f1_score, normalized_mutual_info_score
 
     y, pred = table["true"].values, table["pred"].values
-    km = KMeans(n_clusters=num_classes, n_init=10, random_state=seed).fit_predict(emb)
     return pd.DataFrame([
         {"clusters": "model predictions", "nmi": normalized_mutual_info_score(y, pred), "purity": purity(y, pred),
          "accuracy": accuracy_score(y, pred), "macro_f1": f1_score(y, pred, average="macro", zero_division=0),
          "n": len(y)},
-        {"clusters": f"k-means on embeddings (k={num_classes})", "nmi": normalized_mutual_info_score(y, km),
-         "purity": purity(y, km), "accuracy": np.nan, "macro_f1": np.nan, "n": len(y)},
     ])
 
 
@@ -158,7 +153,7 @@ def run_embedding_analysis(model: BehaVERT, recordings, out_dir: str | Path, met
     if max_points and len(table) > max_points:
         idx = np.sort(np.random.default_rng(seed).choice(len(table), max_points, replace=False))
         emb, table = emb[idx], table.iloc[idx].reset_index(drop=True)
-    metrics = clustering_metrics(emb, table, cfg.num_classes - len(set(exclude_classes)), seed)
+    metrics = clustering_metrics(table)
     xy = project(emb, method, seed)
     table.insert(table.columns.get_loc("true"), "x", xy[:, 0])
     table.insert(table.columns.get_loc("true"), "y", xy[:, 1])

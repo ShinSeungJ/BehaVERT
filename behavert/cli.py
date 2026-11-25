@@ -164,6 +164,11 @@ def _hyperparameter_rows(args, cfg: dict, tcfg, out_dir, summary: dict, pretrain
     return rows
 
 
+def _checkpoint_desc(name, model) -> str:
+    c = model.config
+    return f"{name} ({c.mode}, {c.num_classes} classes)"
+
+
 def _table_kind(cfg: dict) -> str:
     m = cfg.get("model", {})
     if m.get("problem") == "regression":
@@ -349,13 +354,24 @@ def cmd_attention(args) -> None:
     from .model import BehaVERT
     from .recipes import load_config, load_split_recordings, resolve_device
 
+    from . import report
+
     cfg = load_config(args.config, args.task)
+    device = resolve_device(args.device)
+    model = BehaVERT.from_pretrained(args.checkpoint, device=device)
+    _check_model_fits_config(model, cfg, "attention", classification_only=True)
+    out = Path(args.out or f"outputs/attention/{Path(args.config).stem}" + (f"_{args.task}" if args.task else ""))
+    spec = (model.config.display or {}).get("extra_strip")
+    n_sets = len(spec["labels"]) if spec and not args.no_behaviors else 0
+    report.block("ATTENTION CONFIGURATION", [
+        ("Config", _config_name(args)), ("Model", _checkpoint_desc(args.checkpoint, model)),
+        ("Split", args.split + (f" (first {args.recordings} recordings)" if args.recordings else "")),
+        ("Sequence stride", args.stride or f"{model.config.max_seq_length} (the whole window)"),
+        ("Behavior labels", f"{n_sets} sets" if n_sets else "none"), ("Output dir", out), ("Device", device)])
     recs = load_split_recordings(cfg, args.data_root, cfg.get("train", {}).get("seed", 42))[args.split]
     if not recs:
         raise SystemExit(f"this config has no {args.split} recordings")
     recs = sorted(recs, key=lambda r: r.name)[: args.recordings or None]
-    model = BehaVERT.from_pretrained(args.checkpoint, device=resolve_device(args.device))
-    _check_model_fits_config(model, cfg, "attention", classification_only=True)
 
     # per-frame behavior labels to relate attention to: the model's display strip files, if present
     behaviors = {}
@@ -366,14 +382,19 @@ def cmd_attention(args) -> None:
             if path.exists():
                 d = torch.load(path, map_location="cpu", weights_only=False)
                 behaviors[name] = {r.name: np.asarray(d[r.name]) for r in recs if r.name in d}
-    out = Path(args.out or f"outputs/attention/{Path(args.config).stem}" + (f"_{args.task}" if args.task else ""))
-    print(f"{len(recs)} {args.split} recordings, {len(behaviors)} behavior label sets -> {out}")
+    L = model.config.max_seq_length
+    s = args.stride or L
     tables = run_attention_analysis(model, recs, out, stride=args.stride, behaviors=behaviors or None,
                                     batch_size=args.batch_size)
-    t = tables["attention_tests"]
-    with __import__("pandas").option_context("display.width", 160, "display.max_colwidth", 48):
-        print(t[["analysis", "group_a", "group_b", "mean_a", "mean_b", "p_value"]].to_string(index=False))
-    print(f"wrote {', '.join(n + '.csv' for n in tables)} to {out}")
+    report.step_line(f"Collecting attention over the {args.split} split ({len(recs):,} recordings, {L} frames, stride {s})",
+                     f"{len(tables['attention_windows']):,} sequences, {len(tables['attention_frames']):,} frames; "
+                     "confidence split at its median")
+    report.attention_tests_table(tables["attention_tests"])
+    labels = {"attention_frames": "Attention per frame", "attention_windows": "Attention per window",
+              "attention_tests": "Attention tests", "behavior_attention": "Behavior attention",
+              "behavior_peaks": "Behavior peaks", "behavior_success_failure": "Behavior success / failure"}
+    for name in tables:
+        report.saved(labels.get(name, name.replace("_", " ").capitalize()), out / f"{name}.csv")
 
 
 # ------------------------------------------------------------------ embed
@@ -382,21 +403,38 @@ def cmd_embed(args) -> None:
     from .model import BehaVERT
     from .recipes import load_config, load_split_recordings, resolve_device
 
+    from . import report
+
     cfg = load_config(args.config, args.task)
+    device = resolve_device(args.device)
+    model = BehaVERT.from_pretrained(args.checkpoint, device=device)
+    _check_model_fits_config(model, cfg, "embed", classification_only=True)
+    out = Path(args.out or f"outputs/embedding/{Path(args.config).stem}" + (f"_{args.task}" if args.task else ""))
+    exclude = args.exclude if args.exclude is not None else cfg.get("train", {}).get("metric_ignore_classes", [])
+    names = list(model.config.label_names or [])
+    L = model.config.max_seq_length
+    report.block("EMBEDDING CONFIGURATION", [
+        ("Config", _config_name(args)), ("Model", _checkpoint_desc(args.checkpoint, model)),
+        ("Split", args.split + (f" (first {args.recordings} recordings)" if args.recordings else "")),
+        ("Method", {"tsne": "t-SNE", "umap": "UMAP"}.get(args.method, args.method)),
+        ("Color by", "true class" if args.color_by == "true" else "predicted class"),
+        ("Excluded classes", report.named(sorted(exclude), names) if exclude else "none"),
+        ("Max points", args.max_points or "all"),
+        ("Sequence stride", args.stride or f"{L} (the whole window)"), ("Output dir", out), ("Device", device)])
     recs = load_split_recordings(cfg, args.data_root, cfg.get("train", {}).get("seed", 42))[args.split]
     if not recs:
         raise SystemExit(f"this config has no {args.split} recordings")
     recs = sorted(recs, key=lambda r: r.name)[: args.recordings or None]
-    model = BehaVERT.from_pretrained(args.checkpoint, device=resolve_device(args.device))
-    _check_model_fits_config(model, cfg, "embed", classification_only=True)
-    out = Path(args.out or f"outputs/embedding/{Path(args.config).stem}" + (f"_{args.task}" if args.task else ""))
-    exclude = args.exclude if args.exclude is not None else cfg.get("train", {}).get("metric_ignore_classes", [])
-    print(f"{len(recs)} {args.split} recordings -> {out}")
     metrics = run_embedding_analysis(model, recs, out, method=args.method, stride=args.stride,
                                      exclude_classes=exclude, max_points=args.max_points or None,
                                      color_by=args.color_by, title=args.title or "", batch_size=args.batch_size)
-    print(metrics.to_string(index=False))
-    print(f"wrote embedding.csv, clustering.csv and embedding.png/.svg/.pdf to {out}")
+    method = {"tsne": "t-SNE", "umap": "UMAP"}.get(args.method, args.method)
+    report.step_line(f"Embedding the {args.split} split ({len(recs):,} recordings, {L} frames, stride {args.stride or L})",
+                     f"{int(metrics['n'].iloc[0]):,} points of the scored classes; projected with {method}")
+    report.clustering_table(metrics)
+    report.saved("Embedding", out / "embedding.csv")
+    report.saved("Clustering metrics", out / "clustering.csv")
+    report.saved("Embedding map", f"{out / 'embedding.png'} (.svg, .pdf)")
 
 
 # ------------------------------------------------------------------ decode
@@ -425,10 +463,10 @@ def cmd_download(args) -> None:
         raise SystemExit(f"unknown benchmark(s) {unknown}; choose from {', '.join(BENCHMARKS)}")
     # only the benchmark folders: dataset/README.md and LICENSE are part of the repository
     patterns = [f"{n}/**" for n in names]
-    print(f"downloading {', '.join(names)} from {DATASET_REPO} to {args.dir}/ ...")
+    print(f"Downloading {', '.join(names)} from {DATASET_REPO} to {args.dir}/", flush=True)
     snapshot_download(DATASET_REPO, repo_type="dataset", local_dir=args.dir, allow_patterns=patterns,
                       revision=args.revision)
-    print(f"done; commands read {args.dir}/ by default")
+    print(f"Download complete. Every command reads {args.dir}/ by default.")
 
 
 # ------------------------------------------------------------------ main
