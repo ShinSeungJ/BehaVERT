@@ -290,7 +290,7 @@ to 2D with t-SNE or UMAP. It plots them colored by class and measures how well
 they separate the classes:
 
 ```bash
-behavert embed configs/calms21/task1.yaml calms21-task1
+behavert embed configs/calms21/task1_pretrained.yaml calms21-task1
 behavert embed configs/mabe22/state.yaml mabe22-strain --task strain --method umap
 ```
 
