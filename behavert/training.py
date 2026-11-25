@@ -33,8 +33,9 @@ class TrainConfig:
     log_every: int = 20
     seed: int = 42
     max_steps: Optional[int] = None  # stop early (debugging / smoke tests)
-    early_stop_accuracy: Optional[float] = None  # stop once validation accuracy exceeds this
-    patience: Optional[int] = None  # stop after this many validations without a better macro F1
+    # early stopping: stop once neither the validation loss nor the selection metric has
+    # improved for this many epochs (default: 20% of `epochs`, never below 10%; 0 = off)
+    patience: Optional[int] = None
     metric_ignore_classes: list[int] = field(default_factory=list)  # frames with these true labels are not scored
     metric_average_classes: Optional[list[int]] = None  # classes averaged into macro_f1 (default: all scored)
     select_on: str = "macro_f1"  # checkpoint selection: "macro_f1", "f1_class1" or "loss"
@@ -86,6 +87,15 @@ def evaluate_classifier(model, loader, loss_fn, cfg: TrainConfig, device, label_
     return rep
 
 
+def resolve_patience(patience: Optional[int], epochs: int) -> int:
+    """Early-stopping patience in epochs: 20% of ``epochs`` by default and never below
+    10% (at least 1); 0 turns early stopping off."""
+    if patience == 0:
+        return 0
+    floor = max(1, epochs // 10)
+    return max(floor, max(1, epochs * 2 // 10) if patience is None else patience)
+
+
 def fit(
     model: torch.nn.Module,
     train_loader: DataLoader,
@@ -99,7 +109,9 @@ def fit(
     """Generic loop: AdamW, linear warm-up/decay, gradient clipping and accumulation.
 
     Saves ``best_<select_on>/``, ``best_loss/`` and ``last/`` under ``out_dir``
-    (via ``save(model, dir)``), plus ``history.jsonl``.
+    (via ``save(model, dir)``), plus ``history.jsonl``. With validation, training
+    stops early once neither the validation loss nor ``select_on`` has improved for
+    ``cfg.patience`` epochs.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -117,13 +129,17 @@ def fit(
     best = {"loss": math.inf}
     if select_on and select_on != "loss":
         best[select_on] = -math.inf
-    bad_evals, step, t0, last_eval = 0, 0, time.time(), -1
+    patience = resolve_patience(cfg.patience, cfg.epochs)
+    no_gain = (f"neither validation loss nor {select_on} improved" if select_on and select_on != "loss"
+               else "validation loss did not improve")
+    epoch, best_epoch = 0, 0  # current epoch; last epoch in which a tracked metric improved
+    step, t0, last_eval = 0, time.time(), -1
     history = open(out_dir / "history.jsonl", "a")
     running: list[float] = []
     done = False
 
     def run_eval():
-        nonlocal bad_evals, done, last_eval
+        nonlocal best_epoch, last_eval
         if evaluate is None or last_eval == step:
             return
         last_eval = step
@@ -138,22 +154,14 @@ def fit(
         print(msg, flush=True)
         if rep["loss"] < best["loss"]:
             best["loss"] = rep["loss"]
+            best_epoch = epoch
             save(model, out_dir / "best_loss")
-        if select_on and select_on != "loss" and select_on in rep:
-            if rep[select_on] > best[select_on]:
-                best[select_on] = rep[select_on]
-                save(model, out_dir / f"best_{select_on}")
-                bad_evals = 0
-                if "per_class" in rep and rep["per_class"]:
-                    print(format_report(rep, f"  new best {select_on}"), flush=True)
-            else:
-                bad_evals += 1
-            if cfg.patience and bad_evals >= cfg.patience:
-                print(f"no improvement in {cfg.patience} evaluations; stopping", flush=True)
-                done = True
-        if cfg.early_stop_accuracy and rep.get("accuracy", 0) > cfg.early_stop_accuracy:
-            print(f"validation accuracy > {cfg.early_stop_accuracy}; stopping", flush=True)
-            done = True
+        if select_on and select_on != "loss" and select_on in rep and rep[select_on] > best[select_on]:
+            best[select_on] = rep[select_on]
+            best_epoch = epoch
+            save(model, out_dir / f"best_{select_on}")
+            if "per_class" in rep and rep["per_class"]:
+                print(format_report(rep, f"  new best {select_on}"), flush=True)
 
     def optimizer_step():
         nonlocal step, pending
@@ -168,6 +176,7 @@ def fit(
 
     model.train()
     pending = 0  # batches accumulated since the last optimizer step
+    stopped_early = False
     for epoch in range(1, cfg.epochs + 1):
         for batch in train_loader:
             with _autocast(cfg.amp, device):
@@ -184,17 +193,23 @@ def fit(
                 running = []
             if step % cfg.eval_every == 0:
                 run_eval()
-            if done or (cfg.max_steps and step >= cfg.max_steps):
+            if cfg.max_steps and step >= cfg.max_steps:
                 done = True
                 break
         if done:
+            break
+        if evaluate is not None and last_eval >= 0 and patience > 0 and epoch - best_epoch >= patience:
+            print(f"early stop at epoch {epoch}/{cfg.epochs}: {no_gain} for {epoch - best_epoch} epochs "
+                  f"(last improvement in epoch {best_epoch})", flush=True)
+            stopped_early = True
             break
     if pending:  # gradients of the last, incomplete accumulation
         optimizer_step()
     run_eval()
     save(model, out_dir / "last")
     history.close()
-    summary = {"steps": step, "best": best, "config": asdict(cfg)}
+    summary = {"steps": step, "epochs": epoch, "stopped_early": stopped_early, "best": best,
+               "patience": patience, "config": asdict(cfg)}
     (out_dir / "train_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 

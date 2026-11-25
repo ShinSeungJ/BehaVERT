@@ -39,7 +39,6 @@ train:
   warmup_steps: 4000
   eval_every: 10
   log_every: 10
-  early_stop_accuracy: 0.98
   metric_ignore_classes: [3]   # "other" frames are not scored
   select_on: macro_f1
   seed: 42
