@@ -295,8 +295,8 @@ behavert embed configs/mabe22/state.yaml mabe22-strain --task strain --method um
 ```
 
 Output: `embedding.csv` (coordinates, true and predicted class of every point),
-`clustering.csv` (NMI, purity, accuracy and F1 of the predictions and of k-means
-clusters), and `embedding.png` / `.svg` / `.pdf` with editable text.
+`clustering.csv` (NMI, purity, accuracy and F1 of the predictions), and
+`embedding.png` / `.svg` / `.pdf` with editable text.
 
 **Attention.** `behavert attention` records, for every window, how attention is
 spread over its frames, and relates it to the model's confidence, its correctness
