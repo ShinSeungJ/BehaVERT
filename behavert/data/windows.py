@@ -55,9 +55,9 @@ def sliding_windows(
             for regression; the dtype is kept).
         length: window length in frames.
         stride: step between window starts (default ``length // 2``).
-        pad_remainder: keep the leftover frames as a zero-padded last window.
-            The leftover window starts at ``n_full * stride``, which is how the
-            paper's MABe22 experiments built it.
+        pad_remainder: when frames remain after the last full window, add one
+            more window for them, starting at ``n_full * stride`` and zero-padded
+            at the end (mask 0, label ``IGNORE_INDEX``).
     """
     x = _as_tensor(frames, torch.float32)
     x = x.reshape(x.shape[0], -1)
@@ -76,7 +76,7 @@ def sliding_windows(
     ys = [y[s : s + length] for s in starts] if y is not None else None
 
     rest_start = n_full * stride
-    if pad_remainder and rest_start < T:
+    if pad_remainder and _leftover(T, length, stride, n_full):
         n_real = T - rest_start
         pad = length - n_real
         xs.append(torch.cat([x[rest_start:], x.new_zeros(pad, F)]))
@@ -100,12 +100,18 @@ def sliding_windows(
     )
 
 
+def _leftover(T: int, length: int, stride: int, n_full: int) -> bool:
+    """Whether frames remain after the last of ``n_full`` full windows."""
+    covered = (n_full - 1) * stride + length if n_full else 0
+    return covered < T
+
+
 def window_starts(T: int, length: int, stride: int, pad_remainder: bool) -> tuple[list[int], int]:
     """Start frames of the windows :func:`sliding_windows` would cut, and how
     many of them are full (the rest is the padded leftover window)."""
     n_full = 0 if T < length else (T - length) // stride + 1
     starts = [i * stride for i in range(n_full)]
-    if pad_remainder and n_full * stride < T:
+    if pad_remainder and _leftover(T, length, stride, n_full):
         starts.append(n_full * stride)
     return starts, n_full
 

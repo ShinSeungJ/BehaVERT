@@ -24,6 +24,7 @@ from . import report
 from .data import recordings as R
 from .data.augmentation import augment, get_arena
 from .data.dataset import ProportionalBatchSampler, WindowDataset, subset_windows, windows_from_recordings
+from .data.windows import window_starts
 from .inference import predict_windows
 from .losses import WEIGHTED_LOSSES, build_loss
 from .metrics import classification_report, recording_decision, regression_report
@@ -270,11 +271,7 @@ def count_windows(recs: list[R.Recording], window: dict) -> int:
     s = resolve_stride(window)
     pad = window.get("pad_remainder", True)
     lengths = [sum(r.num_frames for r in recs)] if window.get("concat_recordings") else [r.num_frames for r in recs]
-    n = 0
-    for T in lengths:
-        full = 0 if T < L else (T - L) // s + 1
-        n += full + int(pad and full * s < T)
-    return n
+    return sum(len(window_starts(T, L, s, pad)[0]) for T in lengths)
 
 
 def resolve_stride(window: dict) -> int:

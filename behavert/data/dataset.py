@@ -75,7 +75,12 @@ class WindowDataset(Dataset):
         x = self.w.inputs[i]
         if self.augment_fn is not None and self.augmentable[i]:
             if self.uses[i] >= 1:
-                x = self.augment_fn(x)
+                n = int(self.w.mask[i].sum())  # real frames come first; the padding stays zero
+                if n == len(x):
+                    x = self.augment_fn(x)
+                elif n > 0:
+                    x = x.clone()
+                    x[:n] = self.augment_fn(x[:n])
             self.uses[i] += 1
         item = {"input": x, "mask": self.w.mask[i], "index": i}
         if self.w.labels is not None:

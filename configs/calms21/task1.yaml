@@ -10,7 +10,7 @@ data:
   window:
     length: 64
     stride: 32                 # 50% overlap (temporal unfolding)
-    pad_remainder: false
+    pad_remainder: true
     concat_recordings: true    # sessions joined into one stream before windowing
   augmentation:
     arena: calms21
