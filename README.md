@@ -236,7 +236,7 @@ A run writes to its config's `output_dir` (e.g. `outputs/calms21/task1/`):
 
 | Path | Contents |
 |---|---|
-| `best_<metric>/`, `best_loss/`, `last/` | checkpoints (`config.json` + `model.safetensors`), loadable with `from_pretrained` |
+| `best_f1/` (or `best_f1_class1/`), `best_loss/`, `last/` | checkpoints (`config.json` + `model.safetensors`), loadable with `from_pretrained` |
 | `history.jsonl` | training and validation metrics per evaluation |
 | `test_results.json` | test-set scores of each checkpoint |
 | `config.yaml` | the exact configuration of the run |
@@ -245,7 +245,7 @@ To score any checkpoint, released or your own, on a config's test set:
 
 ```bash
 behavert evaluate configs/mabe22/state.yaml mabe22-strain --task strain
-behavert evaluate configs/calms21/task1.yaml outputs/calms21/task1/best_macro_f1
+behavert evaluate configs/calms21/task1.yaml outputs/calms21/task1/best_f1
 ```
 
 ## Training on your own data
@@ -271,7 +271,7 @@ of epochs in the template, then:
 
 ```bash
 behavert train configs/custom_token.yaml --data-root /path/to/your/data
-behavert decode --keypoints new_session.csv --model outputs/custom_token/best_macro_f1 --video new_session.mp4 --sync
+behavert decode --keypoints new_session.csv --model outputs/custom_token/best_f1 --video new_session.mp4 --sync
 ```
 
 Keypoints can also be given as one `.pt`, `.pkl` or `.npz` file holding every
